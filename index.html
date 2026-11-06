@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B. Braun · Evaluación de Inspección Visual (demo)</title>
+<meta name="description" content="Demo estática del sistema de formación en inspección visual de botellas de suero: 40 defectos con ficha validada de 7 apartados, visor 3D y autoevaluación.">
+<style>
+  :root{
+    --bb-green:#00a97a; --bb-green-dark:#00875f; --bb-green-deep:#00684a;
+    --bb-green-tint:#e7f9eb; --bb-green-line:#aae4cb;
+    --bb-paper:#faf9f5; --bb-ink:#202020;
+    --slate-50:#f8fafc; --slate-100:#f1f5f9; --slate-400:#94a3b8; --slate-500:#64748b;
+    --slate-600:#475569; --slate-700:#334155; --slate-800:#1e293b;
+    --line:#e2e8f0; --red-700:#b91c1c; --red-50:#fef2f2; --red-200:#fecaca; --red-300:#fca5a5;
+    --amber-700:#b45309; --amber-50:#fffbeb; --amber-200:#fde68a;
+    --emerald-400:#34d399; --emerald-50:#ecfdf5; --emerald-600:#059669; --emerald-800:#065f46;
+    --emerald-300:#a7f3d0;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bb-paper); color:var(--bb-ink); font-size:15px; line-height:1.55}
+  button{font:inherit; cursor:pointer}
+  a{color:var(--bb-green-dark)}
+  .wrap{max-width:1120px; margin:0 auto; padding:0 16px}
+  /* ---------- Cabecera ---------- */
+  header.site{background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:40}
+  .site-in{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0}
+  .logo{display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit}
+  .logo .b{display:flex; width:34px; height:34px; align-items:center; justify-content:center; background:var(--bb-green); color:#fff; font-weight:800; font-size:20px; border-radius:8px}
+  .logo .t{line-height:1.1}
+  .logo .t b{display:block; color:var(--bb-green-dark); letter-spacing:.14em; font-size:15px}
+  .logo .t small{color:var(--slate-400); letter-spacing:.34em; font-size:8.5px; font-weight:600}
+  .site-t h1{font-size:15px; font-weight:700}
+  .site-t p{font-size:12px; color:var(--slate-500)}
+  .demo-pill{font-size:11px; color:var(--bb-green-dark); border:1px solid var(--bb-green-line); background:var(--bb-green-tint); border-radius:999px; padding:4px 10px; white-space:nowrap}
+  .demo-note{background:var(--bb-green-tint); border-bottom:1px solid var(--bb-green-line); color:var(--slate-600); font-size:12.5px}
+  .demo-note .wrap{padding:7px 16px}
+  /* ---------- Pestañas ---------- */
+  .tabs{display:inline-flex; background:#fff; border:1px solid var(--line); border-radius:999px; padding:4px; gap:4px; margin:18px 0 4px}
+  .tabs button{display:flex; align-items:center; gap:7px; border:0; background:transparent; padding:9px 18px; border-radius:999px; font-weight:600; font-size:14px; color:var(--slate-700)}
+  .tabs button.active{background:var(--bb-green); color:#fff}
+  .backrow{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:14px 0}
+  .btn-ghost{display:inline-flex; align-items:center; gap:6px; border:0; background:transparent; color:var(--slate-600); font-weight:600; font-size:14px; padding:6px 8px; border-radius:8px}
+  .btn-ghost:hover{background:var(--slate-100)}
+  .badge{display:inline-flex; align-items:center; gap:4px; border:1px solid var(--line); border-radius:999px; padding:2px 10px; font-size:12px; color:var(--slate-600); background:#fff}
+  .badge.green{border-color:var(--bb-green-line); background:var(--bb-green-tint); color:var(--bb-green-dark)}
+  .badge.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:700; color:var(--slate-700)}
+  .badge.sev-CRITICO{border-color:var(--red-200); background:var(--red-50); color:var(--red-700)}
+  .badge.sev-MAYOR{border-color:var(--amber-200); background:var(--amber-50); color:var(--amber-700)}
+  .badge.sev-MENOR{border-color:var(--line); background:var(--slate-100); color:var(--slate-600)}
+  /* ---------- Tarjetas ---------- */
+  .card{background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .card-h{padding:16px 18px 8px}
+  .card-h h2{font-size:16px; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .card-b{padding:12px 18px 18px}
+  /* ---------- Tabla Teoría ---------- */
+  .search{display:flex; align-items:center; gap:8px; border:1px solid var(--line); background:#fff; border-radius:10px; padding:9px 12px; margin:12px 0}
+  .search input{border:0; outline:0; flex:1; font:inherit; font-size:14px; background:transparent}
+  table.codes{width:100%; border-collapse:collapse; background:#fff}
+  table.codes th{font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--slate-500); text-align:left; padding:10px 12px; border-bottom:1px solid var(--line)}
+  table.codes td{padding:10px 12px; border-bottom:1px solid var(--slate-100); font-size:14px}
+  table.codes tr.row:hover{background:var(--bb-green-tint)}
+  table.codes tr.row{cursor:pointer}
+  td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:700}
+  .count{font-size:12.5px; color:var(--slate-500); margin:8px 2px}
+  /* ---------- Ficha ---------- */
+  .grid2{display:grid; gap:16px; grid-template-columns:1fr}
+  @media(min-width:1024px){ .grid2{grid-template-columns:1fr 1fr} }
+  .vcard{position:relative; overflow:hidden}
+  .viewer{position:relative; width:100%; height:320px; border-radius:12px; border:1px solid var(--line); overflow:hidden;
+    background:linear-gradient(to bottom,#faf9f5,#eceae4)}
+  @media(min-width:640px){ .viewer{height:352px} }
+  @media(min-width:1024px){ .viewer{height:384px} }
+  .viewer canvas{display:block; touch-action:none}
+  .viewer .hint{position:absolute; bottom:8px; left:50%; transform:translateX(-50%); background:rgba(15,23,42,.7); color:#fff; font-size:11px; padding:3px 12px; border-radius:999px; pointer-events:none; white-space:nowrap}
+  .viewer .load{position:absolute; inset:0; display:flex; flex-direction:column; gap:10px; align-items:center; justify-content:center; font-size:12px; color:var(--slate-500)}
+  .spin{width:30px; height:30px; border:4px solid var(--bb-green); border-top-color:transparent; border-radius:50%; animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:7px; border:0; border-radius:10px; padding:9px 16px; font-weight:600; font-size:14px; background:var(--bb-green-dark); color:#fff}
+  .btn:hover{background:var(--bb-green-deep)}
+  .btn:disabled{opacity:.5; cursor:default}
+  .btn.outline{background:#fff; color:var(--slate-700); border:1px solid var(--line)}
+  .btn.outline:hover{background:var(--slate-50)}
+  .btn.sm{padding:6px 12px; font-size:13px; border-radius:8px}
+  .btn-max{position:absolute; right:8px; top:8px; z-index:10}
+  .sec{border:1px solid var(--line); border-radius:10px; padding:12px}
+  .sec + .sec{margin-top:10px}
+  .sec h3{display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; color:var(--slate-800)}
+  .sec h3 .n{display:flex; width:20px; height:20px; flex:none; align-items:center; justify-content:center; border-radius:50%; background:var(--bb-green); color:#fff; font-size:11px; font-weight:700}
+  .sec h3 svg{color:var(--bb-green-dark); flex:none}
+  .sec .tx{margin-top:8px; font-size:14px; color:var(--slate-600); white-space:pre-line}
+  .sec.grey{background:var(--slate-50)}
+  .regnote{display:flex; gap:6px; align-items:flex-start; font-size:11px; color:var(--slate-400); padding:2px 4px 0}
+  .fam{font-size:12px; color:var(--slate-500); display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:6px}
+  /* ---------- Quiz ---------- */
+  .qtext{border:1px solid var(--line); background:var(--slate-50); border-radius:10px; padding:12px; font-weight:600; color:var(--slate-800); font-size:14px}
+  .opt{display:flex; gap:10px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:11px; cursor:pointer; font-size:14px; color:var(--slate-700)}
+  .opt + .opt{margin-top:8px}
+  .opt:hover{border-color:var(--bb-green); background:rgba(231,249,235,.6)}
+  .opt b{color:var(--slate-500); margin-right:4px}
+  .opt.correct{border-color:var(--emerald-400); background:var(--emerald-50)}
+  .opt.wrong{border-color:var(--red-300); background:var(--red-50)}
+  .opt.dim{opacity:.65; cursor:default}
+  .radio{width:16px; height:16px; flex:none; margin-top:3px; border:1.5px solid var(--slate-400); border-radius:50%}
+  .opt.picked .radio{border-color:var(--bb-green-dark); box-shadow:inset 0 0 0 4px var(--bb-green-dark)}
+  .fb{border-radius:10px; border:1px solid; padding:12px 16px; font-weight:600; font-size:14px}
+  .fb.ok{border-color:var(--emerald-300); background:var(--emerald-50); color:var(--emerald-800)}
+  .fb.ko{border-color:var(--red-300); background:var(--red-50); color:var(--red-700)}
+  .fb p{margin-top:6px; font-weight:400; font-size:12.5px; color:var(--slate-600)}
+  .row{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+  .muted{color:var(--slate-500); font-size:14px}
+  /* ---------- Prueba ---------- */
+  .cfg{display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end}
+  .cfg label{display:block; font-size:12.5px; font-weight:600; color:var(--slate-700); margin-bottom:5px}
+  .cfg select{border:1px solid var(--line); border-radius:10px; padding:9px 12px; font:inherit; font-size:14px; background:#fff}
+  .prog{height:8px; background:var(--slate-100); border-radius:999px; overflow:hidden}
+  .prog i{display:block; height:100%; background:var(--bb-green); transition:width .25s}
+  .res-big{text-align:center; padding:10px 0 4px}
+  .res-big .pct{font-size:44px; font-weight:800; color:var(--bb-green-dark)}
+  ul.rev{list-style:none}
+  ul.rev li{border-bottom:1px solid var(--slate-100); padding:9px 2px; font-size:13.5px; display:flex; gap:8px; align-items:flex-start}
+  ul.rev li .mono{font-family:ui-monospace,Menlo,monospace; font-weight:700}
+  footer.site{margin:28px 0 20px; color:var(--slate-400); font-size:11.5px; text-align:center}
+  /* ---------- Maximizado ---------- */
+  .overlay{position:fixed; inset:0; z-index:60; background:rgba(15,23,42,.72); display:flex; padding:18px}
+  .overlay .inner{flex:1; background:#fff; border-radius:14px; display:flex; flex-direction:column; overflow:hidden}
+  .overlay .bar{display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--line)}
+  .overlay .bar h3{font-size:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .overlay .viewer{flex:1; height:auto; border:0; border-radius:0}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap site-in">
+    <a class="logo" href="./">
+      <span class="b">B</span>
+      <span class="t"><b>BRAUN</b><small>SHARING EXPERTISE</small></span>
+    </a>
+    <div class="site-t">
+      <h1>Evaluación de Inspección Visual</h1>
+      <p>Defectos en botellas de suero · Control de calidad</p>
+    </div>
+    <span class="demo-pill">Demo estática</span>
+  </div>
+</header>
+<div class="demo-note"><div class="wrap">
+  Versión de demostración sin servidor: incluye la Teoría completa, el visor 3D y la autoevaluación.
+  El sistema real (acceso con usuario, prueba puntuable y registros para el administrador) se ejecuta en el servidor interno de B. Braun.
+</div></div>
+
+<main class="wrap" id="app">
+  <div class="tabs" id="tabs">
+    <button data-tab="teoria" class="active">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      Teoría
+    </button>
+    <button data-tab="prueba">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>
+      Prueba de Evaluación
+    </button>
+  </div>
+  <div id="view"></div>
+</main>
+
+<footer class="site">
+  Demo pública generada a partir de la v1.4 del sistema interno · B. Braun — Departamento de Calidad · Uso interno
+</footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+/* ================= Iconos (lucide, trazos inline) ================= */
+const I = {
+  back:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>',
+  max:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>',
+  min:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>',
+  alert:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>',
+  file:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
+  heart:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
+  wrench:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+  clip:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>',
+  eye:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  shield:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>',
+  scale:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>',
+  grad:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>',
+  check:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg>',
+  x:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>',
+  spark:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>',
+  refresh:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>',
+  play:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 8 4 4-4 4"/><path d="m12 8 4 4-4 4"/></svg>',
+  search:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+};
+
+const SEV_TEXT = { CRITICO:"Crítico", MAYOR:"Mayor", MENOR:"Menor" };
+const SECTIONS = [
+  { key:"risks", label:"Riesgos para el paciente", icon:I.heart },
+  { key:"causes", label:"Causas habituales", icon:I.wrench },
+  { key:"action", label:"Actuación correcta", icon:I.clip },
+  { key:"detection", label:"Guía para su detección durante la inspección", icon:I.eye },
+  { key:"prevention", label:"Prevención y buenas prácticas", icon:I.shield },
+];
+
+let DATA = null;
+let state = { tab:"teoria", code:null, search:"", quiz:null,
+  prueba:{ phase:"cfg", total:10, items:[], idx:0, answers:[], picked:null } };
+
+const $ = (s, el=document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ================= Visor 3D (puerto de model-viewer.tsx) ================= */
+class BottViewer {
+  constructor(container, src, onState) {
+    this.container = container; this.src = src; this.onState = onState; this.dead = false; this.disposers = [];
+    (async () => {
+      try {
+        const width = container.clientWidth || 640, height = container.clientHeight || 480;
+        const renderer = new THREE.WebGLRenderer({ antialias:true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(width, height);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+        container.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        const cv = document.createElement("canvas"); cv.width = 2; cv.height = 512;
+        const ctx = cv.getContext("2d");
+        const grad = ctx.createLinearGradient(0,0,0,512);
+        grad.addColorStop(0,"#eef1f4"); grad.addColorStop(.6,"#c9d2d9"); grad.addColorStop(1,"#9aa5ad");
+        ctx.fillStyle = grad; ctx.fillRect(0,0,2,512);
+        const bgTex = new THREE.CanvasTexture(cv); bgTex.colorSpace = THREE.SRGBColorSpace;
+        scene.background = bgTex;
+
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+        scene.environment = env;
+
+        const camera = new THREE.PerspectiveCamera(35, width/height, .01, 100);
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        const draco = new DRACOLoader(); draco.setDecoderPath("./draco/");
+        const loader = new GLTFLoader(); loader.setDRACOLoader(draco);
+
+        const disposeModel = obj => obj.traverse(ch => {
+          const m = ch; if (m.geometry) m.geometry.dispose();
+          const mats = Array.isArray(m.material) ? m.material : (m.material ? [m.material] : []);
+          for (const mat of mats) { for (const v of Object.values(mat)) if (v && v.isTexture) v.dispose(); mat.dispose(); }
+        });
+
+        loader.load(src, gltf => {
+          if (this.dead) { disposeModel(gltf.scene); return; }
+          const obj = gltf.scene; scene.add(obj);
+          const box = new THREE.Box3().setFromObject(obj);
+          const size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z) || 1;
+          const fov = camera.fov * Math.PI/180;
+          const dist = (maxDim/(2*Math.tan(fov/2))) * 1.7;
+          camera.near = dist/100; camera.far = dist*20; camera.updateProjectionMatrix();
+          camera.position.set(center.x + dist*.35, center.y + dist*.22, center.z + dist*.9);
+          controls.target.copy(center); controls.update();
+          this.onState && this.onState("ready");
+        }, undefined, () => { if (!this.dead && this.onState) this.onState("failed"); });
+
+        const ro = new ResizeObserver(() => {
+          const w = container.clientWidth, h = container.clientHeight;
+          if (!w || !h) return;
+          camera.aspect = w/h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
+        });
+        ro.observe(container);
+        renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+
+        this.disposers.push(() => { renderer.setAnimationLoop(null); ro.disconnect(); controls.dispose();
+          env.dispose(); pmrem.dispose(); bgTex.dispose(); draco.dispose(); renderer.dispose(); renderer.domElement.remove(); });
+      } catch (e) { this.onState && this.onState("failed"); }
+    })();
+  }
+  dispose(){ this.dead = true; this.disposers.forEach(f => f()); }
+}
+
+function viewerHTML(src, name, severity, code, withMax=true){
+  return `
+  <div class="card vcard">
+    <div class="card-h"><h2>${esc(name)}
+      <span class="badge sev-${esc(severity)}">${SEV_TEXT[severity]||esc(severity)}</span>
+      ${code?`<span class="badge mono">${esc(code)}</span>`:""}
+    </h2></div>
+    <div class="card-b">
+      <div class="viewer" data-src="${esc(src)}" data-name="${esc(name)}">
+        <div class="load"><div class="spin"></div>Cargando modelo 3D…</div>
+        <div class="hint">Arrastra para rotar · Rueda/pellizco para zoom · Clic derecho para mover</div>
+        ${withMax?`<button class="btn btn-max" data-max="1" aria-label="Maximizar el visor 3D">${I.max}<span class="lbl"> Maximizar</span></button>`:""}
+      </div>
+    </div>
+  </div>`;
+}
+
+function mountViewers(root){
+  root.querySelectorAll(".viewer").forEach(v => {
+    new BottViewer(v, v.dataset.src, st => {
+      const load = $(".load", v);
+      if (load) { if (st==="ready") load.remove(); else load.innerHTML = "No se pudo cargar el modelo 3D"; }
+    });
+    const btn = $("[data-max]", v);
+    if (btn) btn.addEventListener("click", () => openMax(v.dataset.src, v.dataset.name));
+  });
+}
+
+let maxViewer = null;
+function openMax(src, name){
+  const ov = document.createElement("div");
+  ov.className = "overlay";
+  ov.innerHTML = `<div class="inner">
+    <div class="bar"><h3>${esc(name)} <span class="badge green">Visor maximizado</span></h3>
+      <button class="btn outline sm" data-close>${I.min} Cerrar</button></div>
+    <div class="viewer" data-src="${esc(src)}"><div class="load"><div class="spin"></div>Cargando modelo 3D…</div></div>
+  </div>`;
+  document.body.appendChild(ov);
+  document.body.style.overflow = "hidden";
+  maxViewer = new BottViewer($(".viewer", ov), src, st => {
+    const load = $(".load", ov); if (load) { if (st==="ready") load.remove(); else load.innerHTML = "No se pudo cargar el modelo 3D"; }
+  });
+  const close = () => { maxViewer && maxViewer.dispose(); maxViewer = null; ov.remove(); document.body.style.overflow = ""; document.removeEventListener("keydown", esc2); };
+  const esc2 = e => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", esc2);
+  $("[data-close]", ov).addEventListener("click", close);
+}
+
+/* ================= Vistas ================= */
+function defectByCode(c){ return DATA.defects.find(d => d.code === c); }
+
+function renderTeoria(){
+  const v = $("#view");
+  const list = DATA.defects.filter(d =>
+    !state.search || (d.code+" "+d.name+" "+d.category).toLowerCase().includes(state.search.toLowerCase()));
+  v.innerHTML = `
+    <div class="search">${I.search}<input id="q" type="search" placeholder="Buscar por código, defecto o familia…" value="${esc(state.search)}"></div>
+    <p class="count">${list.length} de ${DATA.defects.length} códigos</p>
+    <div class="card" style="overflow-x:auto">
+      <table class="codes">
+        <thead><tr><th>Código</th><th>Defecto</th><th>Familia</th><th>Severidad</th></tr></thead>
+        <tbody>
+          ${list.map(d => `<tr class="row" data-code="${esc(d.code)}">
+            <td class="mono">${esc(d.code)}</td><td>${esc(d.name)}</td><td>${esc(d.category)}</td>
+            <td><span class="badge sev-${esc(d.severity)}">${SEV_TEXT[d.severity]||esc(d.severity)}</span></td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>`;
+  $("#q").addEventListener("input", e => { state.search = e.target.value;
+    const pos = e.target.selectionStart; renderTeoria(); const nq = $("#q"); nq.focus(); nq.setSelectionRange(pos,pos); });
+  v.querySelectorAll("tr.row").forEach(tr => tr.addEventListener("click", () => {
+    state.code = tr.dataset.code; location.hash = "D/" + state.code;
+  }));
+}
+
+function renderFicha(code){
+  const d = defectByCode(code);
+  const v = $("#view");
+  if (!d) { renderTeoria(); return; }
+  const secs = SECTIONS.filter(s => d[s.key]);
+  v.innerHTML = `
+    <div class="backrow">
+      <button class="btn-ghost" data-back>${I.back} Volver a la tabla</button>
+      <span class="badge green">Teoría · repaso libre</span>
+    </div>
+    <div class="grid2">
+      ${viewerHTML(d.modelPath, d.name, d.severity, d.code)}
+      <div class="card">
+        <div class="card-h"><h2>Ficha del defecto</h2></div>
+        <div class="card-b">
+          <section class="sec grey">
+            <h3><span class="n">1</span>${I.alert} Defecto</h3>
+            <p style="margin-top:8px;font-weight:600;color:var(--slate-800)">
+              <span class="mono" style="font-family:ui-monospace,Menlo,monospace">${esc(d.code)}</span> — ${esc(d.name)}</p>
+            <p class="fam">Familia: ${esc(d.category)}
+              <span class="badge sev-${esc(d.severity)}">Severidad: ${SEV_TEXT[d.severity]||esc(d.severity)}</span></p>
+          </section>
+          <section class="sec">
+            <h3><span class="n">2</span>${I.file} Descripción breve del defecto</h3>
+            <div class="tx"><p>${esc(d.description)}</p>${d.detail?`<p style="margin-top:8px">${esc(d.detail)}</p>`:""}</div>
+          </section>
+          ${secs.map((s,i) => `<section class="sec">
+            <h3><span class="n">${i+3}</span>${s.icon} ${s.label}</h3>
+            <div class="tx">${esc(d[s.key])}</div></section>`).join("")}
+          ${d.regulation ? `<p class="regnote">${I.scale}<span>Referencias normativas: ${esc(d.regulation)}</span></p>` : ""}
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;border-color:var(--bb-green-line)" id="quizCard"></div>`;
+  $("[data-back]", v).addEventListener("click", () => { location.hash = ""; state.code = null; renderTeoria(); });
+  mountViewers(v);
+  mountFichaQuiz(d);
+}
+
+function mountFichaQuiz(d){
+  const host = $("#quizCard");
+  const bank = DATA.questionsByDefectId[d.id] || [];
+  const paint = (q, picked, fb) => {
+    host.innerHTML = `
+      <div class="card-h"><h2>${I.grad} Pon a prueba tus conocimientos
+        <span class="badge green">Autoevaluación · 1 pregunta</span></h2></div>
+      <div class="card-b" id="quizBody">
+        ${!q ? `<div class="row" style="justify-content:space-between">
+          <p class="muted" style="max-width:640px">Comprueba cuánto has aprendido sobre <strong>${esc(d.name)}</strong>.
+          Se te propondrá 1 pregunta escogida al azar del banco de este defecto: si repites el repaso, puede tocar una pregunta distinta.</p>
+          <button class="btn" id="qStart">${I.spark} Comenzar autoevaluación</button></div>`
+        : `<p class="qtext">${esc(q.text)}</p>
+           <div id="opts" style="margin-top:10px">${["A","B","C"].map(k => {
+             const isC = fb && fb.correct === k, isW = fb && picked === k && picked !== fb.correct;
+             return `<div class="opt ${fb ? (isC ? "correct" : (isW ? "wrong picked" : "dim")) : (picked===k ? "picked" : "")}" data-k="${k}">
+               <span class="radio"></span><span><b>${k})</b>${esc(q["option"+k])}</span>
+               ${fb && isC ? `<span style="margin-left:auto;color:var(--emerald-600)">${I.check}</span>` : ""}
+               ${fb && isW ? `<span style="margin-left:auto;color:var(--red-700)">${I.x}</span>` : ""}
+             </div>`; }).join("")}</div>
+           ${fb ? `<div class="fb ${fb.ok ? "ok" : "ko"}" style="margin-top:12px">
+               <span style="display:flex;align-items:center;gap:8px">${fb.ok ? I.check+" ¡Correcto!" : I.x+" Error, revisa la información correspondiente al defecto"}</span>
+               <p>${esc(fb.explanation)}</p></div>
+             <div class="row" style="margin-top:12px">
+               <button class="btn outline sm" id="qAnother">${I.refresh} Otra pregunta</button>
+               <button class="btn sm" style="background:transparent;color:var(--slate-500)" id="qClose">Cerrar autoevaluación</button></div>`
+            : `<button class="btn" id="qConfirm" style="margin-top:12px" ${picked ? "" : "disabled"}>Confirmar respuesta</button>`}
+        `}`;
+    if (!q) $("#qStart", host).addEventListener("click", () => paint(bank[Math.floor(Math.random()*bank.length)], null, null));
+    else {
+      if (!fb) {
+        $("#opts", host).addEventListener("click", e => { const o = e.target.closest(".opt"); if (o) paint(q, o.dataset.k, null); });
+        $("#qConfirm", host).addEventListener("click", () => paint(q, picked, { ok: picked === q.correct, correct: q.correct, explanation: q.explanation }));
+      } else {
+        $("#qAnother", host).addEventListener("click", () => paint(bank[Math.floor(Math.random()*bank.length)], null, null));
+        $("#qClose", host).addEventListener("click", () => paint(null, null, null));
+      }
+    }
+  };
+  paint(state.quiz && state.quiz.code === d.code ? state.quiz.q : null, null, null);
+  state.quiz = { code: d.code };
+}
+
+/* ================= Prueba de evaluación ================= */
+function renderPrueba(){
+  const v = $("#view");
+  const p = state.prueba;
+  if (p.phase === "cfg") {
+    v.innerHTML = `
+      <div class="backrow"><span></span><span class="badge green">Prueba de Evaluación · demo</span></div>
+      <div class="card" style="max-width:640px;margin:0 auto">
+        <div class="card-h"><h2>Prueba de Evaluación</h2></div>
+        <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+          <p class="muted">Se generará una batería de preguntas escogidas al azar del banco (200 preguntas, 5 por defecto).
+          Cada pregunta muestra el modelo 3D del envase y tres opciones. En la demo el resultado no se guarda:
+          en el sistema interno queda registrado para el administrador y exportable a CSV/Excel.</p>
+          <div class="cfg">
+            <div><label for="np">Número de preguntas</label>
+              <select id="np">${[5,10,15,20,40].map(n => `<option ${n===p.total?"selected":""}>${n}</option>`).join("")}</select></div>
+            <button class="btn" id="pStart">${I.play} Comenzar prueba</button>
+          </div>
+        </div>
+      </div>`;
+    $("#pStart", v).addEventListener("click", () => {
+      p.total = parseInt($("#np", v).value, 10);
+      const bank = [];
+      DATA.defects.forEach(d => (DATA.questionsByDefectId[d.id] || []).forEach(q => bank.push({ d, q })));
+      for (let i = bank.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [bank[i], bank[j]] = [bank[j], bank[i]]; }
+      p.items = bank.slice(0, p.total); p.idx = 0; p.answers = []; p.picked = null; p.phase = "run";
+      renderPrueba();
+    });
+    return;
+  }
+  if (p.phase === "run") {
+    const { d, q } = p.items[p.idx];
+    const fb = p.picked ? { ok: p.picked === q.correct, correct: q.correct, explanation: q.explanation } : null;
+    v.innerHTML = `
+      <div class="backrow">
+        <button class="btn-ghost" data-abort>${I.back} Abandonar</button>
+        <span class="badge">Pregunta ${p.idx+1} de ${p.items.length}</span>
+      </div>
+      <div class="prog" style="margin-bottom:14px"><i style="width:${(p.idx/p.items.length)*100}%"></i></div>
+      <div class="grid2">
+        ${viewerHTML(d.modelPath, "Envase en inspección", d.severity, d.code)}
+        <div class="card">
+          <div class="card-h"><h2>${I.grad} ¿Qué defecto presenta el envase?</h2></div>
+          <div class="card-b">
+            <p class="qtext">${esc(q.text)}</p>
+            <div id="opts" style="margin-top:10px">${["A","B","C"].map(k => {
+              const isC = fb && fb.correct === k, isW = fb && p.picked === k && p.picked !== fb.correct;
+              return `<div class="opt ${fb ? (isC ? "correct" : (isW ? "wrong picked" : "dim")) : (p.picked===k ? "picked" : "")}" data-k="${k}">
+                <span class="radio"></span><span><b>${k})</b>${esc(q["option"+k])}</span>
+                ${fb && isC ? `<span style="margin-left:auto;color:var(--emerald-600)">${I.check}</span>` : ""}
+                ${fb && isW ? `<span style="margin-left:auto;color:var(--red-700)">${I.x}</span>` : ""}
+              </div>`; }).join("")}</div>
+            ${fb ? `<div class="fb ${fb.ok ? "ok" : "ko"}" style="margin-top:12px">
+                <span style="display:flex;align-items:center;gap:8px">${fb.ok ? I.check+" ¡Correcto!" : I.x+" Error"}</span>
+                <p>${esc(fb.explanation)}</p></div>
+              <div class="row" style="margin-top:12px">
+                <button class="btn" id="pNext">${p.idx+1 < p.items.length ? "Siguiente pregunta" : "Ver resultado"}</button>
+                ${!fb.ok ? `<button class="btn outline sm" id="pReview" data-code="${esc(d.code)}">Repasar la ficha</button>` : ""}</div>`
+             : `<button class="btn" id="pConfirm" style="margin-top:12px" ${p.picked ? "" : "disabled"}>Confirmar respuesta</button>`}
+          </div>
+        </div>
+      </div>`;
+    $("[data-abort]", v).addEventListener("click", () => { p.phase = "cfg"; renderPrueba(); });
+    mountViewers(v);
+    if (!fb) {
+      $("#opts", v).addEventListener("click", e => { const o = e.target.closest(".opt"); if (o) { p.picked = o.dataset.k; renderPrueba(); } });
+      $("#pConfirm", v).addEventListener("click", () => renderPrueba());
+    } else {
+      p.answers.push({ d, q, picked: p.picked, ok: fb.ok });
+      $("#pNext", v).addEventListener("click", () => {
+        p.picked = null;
+        if (++p.idx >= p.items.length) p.phase = "end";
+        renderPrueba();
+      });
+      const r = $("#pReview", v);
+      if (r) r.addEventListener("click", () => { location.hash = "D/" + r.dataset.code; });
+    }
+    return;
+  }
+  /* Resultado */
+  const okN = p.answers.filter(a => a.ok).length;
+  const pct = Math.round((okN / p.answers.length) * 100);
+  v.innerHTML = `
+    <div class="backrow"><span></span><span class="badge green">Prueba finalizada</span></div>
+    <div class="card" style="max-width:720px;margin:0 auto">
+      <div class="card-h"><h2>Resultado</h2></div>
+      <div class="card-b">
+        <div class="res-big"><div class="pct">${pct}%</div>
+          <p class="muted">${okN} de ${p.answers.length} respuestas correctas</p>
+          <p style="font-size:12px;color:var(--slate-400);margin-top:6px">Demo: el resultado no queda registrado en el sistema.</p></div>
+        <ul class="rev" style="margin-top:12px">
+          ${p.answers.map(a => `<li>${a.ok ? `<span style="color:var(--emerald-600)">${I.check}</span>` : `<span style="color:var(--red-700)">${I.x}</span>`}
+            <span><span class="mono">${esc(a.d.code)}</span> — ${esc(a.d.name)}</span>
+            <span class="badge mono" style="margin-left:auto"><a href="#D/${esc(a.d.code)}" style="text-decoration:none">Ver ficha</a></span></li>`).join("")}
+        </ul>
+        <div class="row" style="margin-top:16px">
+          <button class="btn" id="pAgain">${I.refresh} Repetir prueba</button>
+          <button class="btn outline" id="pHome">Volver a la tabla</button>
+        </div>
+      </div>
+    </div>`;
+  $("#pAgain", v).addEventListener("click", () => { state.prueba = { phase:"cfg", total:10, items:[], idx:0, answers:[], picked:null }; renderPrueba(); });
+  $("#pHome", v).addEventListener("click", () => { location.hash = ""; renderTeoria(); });
+}
+
+/* ================= Arranque ================= */
+function route(){
+  const m = location.hash.match(/^#D\/(.+)$/);
+  const tabs = $("#tabs");
+  if (m) { state.code = decodeURIComponent(m[1]); renderFicha(state.code); return; }
+  state.code = null;
+  if (state.tab === "prueba") renderPrueba(); else renderTeoria();
+}
+document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => {
+  state.tab = b.dataset.tab;
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("active", x === b));
+  history.replaceState(null, "", location.pathname + location.search);
+  route();
+}));
+window.addEventListener("hashchange", route);
+
+fetch("./demo-data.json").then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+  .then(data => { DATA = data; route(); })
+  .catch(() => { $("#view").innerHTML = `<div class="card" style="max-width:480px;margin:40px auto"><div class="card-b">
+    <p class="muted">No se pudo cargar el contenido de la demo (demo-data.json). Vuelve a intentarlo más tarde.</p></div></div>`; });
+</script>
+</body>
+</html>
