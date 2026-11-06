@@ -1,0 +1,249 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-bb-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* ── Identidad corporativa B. Braun (bbraun.es) ── */
+  --color-bb-green: #00a97a;        /* verde corporativo (paneles, logo) */
+  --color-bb-green-dark: #00875f;   /* botones y texto sobre blanco */
+  --color-bb-green-deep: #00684a;   /* hover */
+  --color-bb-green-tint: #e7f9eb;   /* fondos suaves */
+  --color-bb-green-line: #aae4cb;   /* bordes suaves */
+  --color-bb-purple: #9e2ab5;       /* acento secundario corporativo */
+  --color-bb-purple-dark: #711e82;
+  --color-bb-purple-tint: #fbf4fc;
+  --color-bb-purple-line: #ead1ef;
+  --color-bb-paper: #faf9f5;        /* papel off-white corporativo */
+  --color-bb-ink: #202020;          /* texto principal */
+  --color-bb-gray: #737373;         /* texto secundario */
+  --color-bb-line: #e6e6e6;         /* bordes neutros */
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: #faf9f5;
+  --foreground: #202020;
+  --card: #ffffff;
+  --card-foreground: #202020;
+  --popover: #ffffff;
+  --popover-foreground: #202020;
+  --primary: #00875f;
+  --primary-foreground: #ffffff;
+  --secondary: #f0efeb;
+  --secondary-foreground: #202020;
+  --muted: #f0efeb;
+  --muted-foreground: #737373;
+  --accent: #e7f9eb;
+  --accent-foreground: #00684a;
+  --destructive: #d34836;
+  --border: #e6e6e6;
+  --input: #dbdbdb;
+  --ring: #00a97a;
+  --chart-1: #00a97a;
+  --chart-2: #9e2ab5;
+  --chart-3: #0094ff;
+  --chart-4: #e57228;
+  --chart-5: #737373;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #202020;
+  --sidebar-primary: #00875f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e7f9eb;
+  --sidebar-accent-foreground: #00684a;
+  --sidebar-border: #e6e6e6;
+  --sidebar-ring: #00a97a;
+}
+
+.dark {
+  --background: #16181a;
+  --foreground: #f5f5f4;
+  --card: #1e2022;
+  --card-foreground: #f5f5f4;
+  --popover: #1e2022;
+  --popover-foreground: #f5f5f4;
+  --primary: #00b482;
+  --primary-foreground: #0c1210;
+  --secondary: #26282b;
+  --secondary-foreground: #f5f5f4;
+  --muted: #26282b;
+  --muted-foreground: #a3a3a3;
+  --accent: #24352d;
+  --accent-foreground: #7fe0bd;
+  --destructive: #e57262;
+  --border: #2f3235;
+  --input: #3a3d40;
+  --ring: #00b482;
+  --chart-1: #00b482;
+  --chart-2: #b55ac9;
+  --chart-3: #4db2ff;
+  --chart-4: #f09258;
+  --chart-5: #a3a3a3;
+  --sidebar: #1e2022;
+  --sidebar-foreground: #f5f5f4;
+  --sidebar-primary: #00b482;
+  --sidebar-primary-foreground: #0c1210;
+  --sidebar-accent: #24352d;
+  --sidebar-accent-foreground: #7fe0bd;
+  --sidebar-border: #2f3235;
+  --sidebar-ring: #00b482;
+}
+
+/*
+ * ── Tipografía corporativa "BBraun Type Digital" (despliegue interno) ──
+ *
+ * La aplicación intenta resolver la fuente en este orden:
+ *   1. local(): instalada en el equipo cliente (p. ej. desplegada por GPO/SCCM por TI).
+ *   2. url(): servida desde este mismo servidor — copia los .woff2 licenciados en
+ *      public/fonts/ con estos nombres exactos y se activan sin tocar código ni
+ *      recompilar (cambia el nombre del archivo si TI usa otra nomenclatura):
+ *        public/fonts/BBraunTypeDigital-Regular.woff2    (peso 400)
+ *        public/fonts/BBraunTypeDigital-Medium.woff2     (peso 500)
+ *        public/fonts/BBraunTypeDigital-SemiBold.woff2   (peso 600)
+ *        public/fonts/BBraunTypeDigital-Bold.woff2       (peso 700)
+ *        public/fonts/BBraunTypeDigital-ExtraBold.woff2  (peso 800)
+ *   3. var(--font-bb-sans): Inter autoalojada en el build (next/font) como
+ *      aproximación corporativa; garantiza un aspecto uniforme y sin peticiones
+ *      externas mientras la fuente licenciada no esté disponible.
+ * Mientras los .woff2 corporativos no existan, el navegador registra 404 en
+ * /fonts/… y continúa con el fallback — es el comportamiento esperado.
+ */
+@font-face {
+  font-family: "BBraun Type Digital";
+  src: local("BBraun Type Digital"), local("BBraunTypeDigital-Regular"),
+    url("/fonts/BBraunTypeDigital-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "BBraun Type Digital";
+  src: local("BBraun Type Digital Medium"), local("BBraunTypeDigital-Medium"),
+    url("/fonts/BBraunTypeDigital-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "BBraun Type Digital";
+  src: local("BBraun Type Digital SemiBold"), local("BBraunTypeDigital-SemiBold"),
+    url("/fonts/BBraunTypeDigital-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "BBraun Type Digital";
+  src: local("BBraun Type Digital Bold"), local("BBraunTypeDigital-Bold"),
+    url("/fonts/BBraunTypeDigital-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "BBraun Type Digital";
+  src: local("BBraun Type Digital ExtraBold"), local("BBraunTypeDigital-ExtraBold"),
+    url("/fonts/BBraunTypeDigital-ExtraBold.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    font-family: "BBraun Type Digital", "BBraunTypeDigital", var(--font-bb-sans),
+      "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "BBraun Type Digital", "BBraunTypeDigital", var(--font-bb-sans),
+      "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  }
+  /* El cuerpo corporativo usa titulares algo más compactos */
+  h1, h2, h3, h4 {
+    letter-spacing: -0.01em;
+  }
+}
+
+/* ── Marca: línea superior tipo bbraun.es y wordmark ── */
+.bb-topstrip {
+  background: #faf9f5;
+}
+.bb-wordmark {
+  color: #00a97a;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.bb-wordmark-tag {
+  color: #00a97a;
+  font-size: 0.625rem;
+  letter-spacing: 0.3em;
+  font-weight: 600;
+}
+
+/* Scrollbar personalizado para zonas de listado/tablas */
+.overflow-y-auto::-webkit-scrollbar,
+.max-h-\[28rem\]::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.overflow-y-auto::-webkit-scrollbar-track,
+.max-h-\[28rem\]::-webkit-scrollbar-track {
+  background: transparent;
+}
+.overflow-y-auto::-webkit-scrollbar-thumb,
+.max-h-\[28rem\]::-webkit-scrollbar-thumb {
+  background: #cfcdc6;
+  border-radius: 9999px;
+}
+.overflow-y-auto::-webkit-scrollbar-thumb:hover,
+.max-h-\[28rem\]::-webkit-scrollbar-thumb:hover {
+  background: #b0b0b0;
+}
+
+model-viewer {
+  --poster-color: transparent;
+  --progress-bar-color: #00a97a;
+  --progress-bar-height: 3px;
+}

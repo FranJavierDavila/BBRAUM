@@ -1,0 +1,117 @@
+generator client {
+  provider      = "prisma-client-js"
+  // "native" = plataforma donde se genera (p.ej. Linux de CI); "windows" = servidores B. Braun (IIS).
+  // Mantiene ambos motores de consulta listos para el despliegue en Windows sin regenerar.
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Usuarios del sistema: ADMIN (gestiona) y USER (se evalúa)
+model User {
+  id          String    @id @default(cuid())
+  username    String    @unique
+  email       String    @unique
+  password    String
+  role        String    @default("USER") // "USER" | "ADMIN"
+  consentAt   DateTime? // consentimiento RGPD
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  attempts    Attempt[]
+}
+
+// Defecto de botella de suero (40 en total)
+model Defect {
+  id          String       @id @default(cuid())
+  code        String       @unique // código alfanumérico, ej. "D017"
+  name        String
+  category    String
+  description String
+  detail      String
+  severity    String // MENOR | MAYOR | CRITICO
+  modelPath   String // ruta al GLB en /models (editable por el administrador)
+  order       Int
+  // Contenidos teóricos ampliados (editables por el administrador)
+  causes      String? // causas habituales del defecto
+  risks       String? // riesgos para el paciente / consecuencias
+  detection   String? // guía de detección en inspección visual
+  action      String? // actuación correcta ante el hallazgo
+  prevention  String? // prevención y buenas prácticas
+  regulation  String? // referencias normativas
+  questions   Question[]
+  finalAnswers FinalAnswer[]
+  media       DefectMedia[]
+}
+
+// Material de apoyo multimedia asociado a un defecto (gestionado por el administrador)
+model DefectMedia {
+  id         String   @id @default(cuid())
+  defectId   String
+  type       String // IMAGE | VIDEO | EMBED
+  url        String // ruta local (/uploads/…) o URL externa (embed)
+  title      String
+  caption    String?
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+  defect     Defect   @relation(fields: [defectId], references: [id], onDelete: Cascade)
+
+  @@index([defectId])
+}
+
+// Pregunta tipo test: 3 opciones, 1 correcta. Hasta 5 variantes por defecto.
+model Question {
+  id          String        @id @default(cuid())
+  defectId    String
+  variant     Int // 1..5
+  text        String
+  optionA     String
+  optionB     String
+  optionC     String
+  correct     String // "A" | "B" | "C"
+  explanation String
+  defect      Defect        @relation(fields: [defectId], references: [id])
+  finalAnswers FinalAnswer[]
+
+  @@unique([defectId, variant])
+}
+
+// Configuración global (singleton) controlada por el administrador
+model EvalConfig {
+  id                    String   @id @default(cuid())
+  numFinalQuestions     Int      @default(10) // nº de preguntas de la Prueba de Evaluación (1..40)
+  allowTheoryDuringTest Boolean  @default(true) // permitir salir a consultar la Teoría durante una Prueba en curso
+  qrEvaluation          Boolean  @default(true) // las fichas abiertas desde un QR incluyen autoevaluación
+  qrBaseUrl             String?  // base URL para generar los códigos QR; vacío = origen de la petición
+  updatedAt             DateTime @updatedAt
+}
+
+// Un intento de evaluación de un usuario
+model Attempt {
+  id            String    @id @default(cuid())
+  userId        String
+  attemptNumber Int
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  finalScore    Float? // 0..10
+  status        String    @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED (| ABANDONED, histórico)
+  user          User      @relation(fields: [userId], references: [id])
+  finalAnswers  FinalAnswer[]
+}
+
+// Preguntas del test final de un intento
+model FinalAnswer {
+  id         String    @id @default(cuid())
+  attemptId  String
+  questionId String
+  defectId   String
+  selected   String? // "A" | "B" | "C"
+  isCorrect  Boolean   @default(false)
+  orderIndex Int
+  answeredAt DateTime?
+  attempt    Attempt   @relation(fields: [attemptId], references: [id])
+  question   Question  @relation(fields: [questionId], references: [id])
+  defect     Defect    @relation(fields: [defectId], references: [id])
+}
