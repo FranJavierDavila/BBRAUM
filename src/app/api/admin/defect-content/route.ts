@@ -105,6 +105,22 @@ export async function PUT(req: NextRequest) {
     data[field] = trimmed;
   }
 
+  // Nombre del defecto: editable por si el cliente usa una nomenclatura distinta.
+  // El código nunca cambia (lo referencian QR, URLs y registros).
+  if (body.name !== undefined) {
+    if (typeof body.name !== "string") {
+      return NextResponse.json({ error: "El nombre del defecto debe ser texto" }, { status: 400 });
+    }
+    const name = body.name.trim();
+    if (name.length < 2) {
+      return NextResponse.json({ error: "El nombre del defecto no puede quedar vacío" }, { status: 400 });
+    }
+    if (name.length > 120) {
+      return NextResponse.json({ error: "El nombre del defecto excede la longitud máxima (120)" }, { status: 400 });
+    }
+    data.name = name;
+  }
+
   // Modelo 3D: debe apuntar a un GLB existente en /public/models
   if (typeof body.modelPath === "string" && body.modelPath.trim()) {
     const modelPath = body.modelPath.trim();
@@ -124,6 +140,7 @@ export async function PUT(req: NextRequest) {
     ok: true,
     defect: {
       code: updated.code,
+      name: updated.name,
       modelPath: updated.modelPath,
       causes: updated.causes,
       risks: updated.risks,

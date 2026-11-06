@@ -761,6 +761,7 @@ function ContentsTab() {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [selectedCode, setSelectedCode] = useState<string>("");
   const [form, setForm] = useState<Record<ContentFieldKey, string>>(EMPTY_FORM);
+  const [name, setName] = useState<string>("");
   const [modelPath, setModelPath] = useState<string>("");
   const [media, setMedia] = useState<AdminMedia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -819,6 +820,7 @@ function ContentsTab() {
         regulation: d.regulation ?? "",
       });
       setModelPath(d.modelPath);
+      setName(d.name ?? "");
     }
     apiFetch<{ media: AdminMedia[] }>(`/api/admin/media?code=${encodeURIComponent(selectedCode)}`)
       .then((data) => setMedia(data.media))
@@ -831,7 +833,7 @@ function ContentsTab() {
     try {
       await apiFetch("/api/admin/defect-content", {
         method: "PUT",
-        body: JSON.stringify({ code: selectedCode, ...form, modelPath }),
+        body: JSON.stringify({ code: selectedCode, name, ...form, modelPath }),
       });
       await refreshDefects();
       toast({
@@ -1009,6 +1011,23 @@ function ContentsTab() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Nombre del defecto (nomenclatura editable) */}
+              <div className="space-y-1.5 rounded-lg border bg-slate-50 p-3">
+                <Label htmlFor="cnt-name">Nombre del defecto</Label>
+                <Input
+                  id="cnt-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Nombre visible en la tabla de Teoría y en la ficha"
+                  maxLength={120}
+                />
+                <p className="text-xs text-slate-400">
+                  Cámbialo aquí si el cliente usa otra nomenclatura: se actualiza a la vez en la tabla de Teoría,
+                  en el apartado 1 de la ficha y en el visor 3D. El código ({selected.code}) nunca cambia, para no
+                  romper QR ni registros.
+                </p>
+              </div>
+
               {CONTENT_FIELDS.map((f) => (
                 <div key={f.key} className="space-y-1.5">
                   <Label htmlFor={`cnt-${f.key}`}>{f.label}</Label>
