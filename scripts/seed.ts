@@ -255,18 +255,21 @@ async function main() {
     console.log("Config inicial: 10 preguntas finales por Prueba de Evaluación");
   }
 
-  // Limpieza y recarga de catálogo
+  // Limpieza de respuestas y preguntas. El catálogo NO se borra: se crean solo
+  // los defectos que falten para no perder las ediciones del administrador
+  // (nombres propios, contenidos teóricos y modelo 3D asignado).
   await db.finalAnswer.deleteMany();
   await db.attempt.deleteMany();
   await db.question.deleteMany();
-  await db.defect.deleteMany();
 
   let qCount = 0;
   for (let i = 0; i < DEFECTS.length; i++) {
     const d = DEFECTS[i];
     const content = DEFECT_CONTENT[d.code];
-    const defect = await db.defect.create({
-      data: {
+    const defect = await db.defect.upsert({
+      where: { code: d.code },
+      update: {},
+      create: {
         code: d.code,
         name: d.name,
         category: d.cat,
