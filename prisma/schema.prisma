@@ -50,10 +50,11 @@ model Defect {
 model DefectMedia {
   id         String   @id @default(cuid())
   defectId   String
-  type       String // IMAGE | VIDEO | EMBED
+  type       String // IMAGE | VIDEO | EMBED | AUDIO
   url        String // ruta local (/uploads/…) o URL externa (embed)
   title      String
   caption    String?
+  section    String? // apartado de la ficha donde se muestra: header | description | risks | causes | action | detection | prevention | regulation (null = galería del pie)
   orderIndex Int      @default(0)
   createdAt  DateTime @default(now())
   defect     Defect   @relation(fields: [defectId], references: [id], onDelete: Cascade)

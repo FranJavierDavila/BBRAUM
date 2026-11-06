@@ -19,10 +19,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   Loader2, Save, Download, Search, KeyRound, Settings2, Users, BookOpenCheck,
-  Boxes, Image as ImageIcon, Link2, Trash2, Upload, Film, QrCode, Printer, FileSpreadsheet,
+  Boxes, Image as ImageIcon, Link2, Trash2, Upload, Film, Volume2, QrCode, Printer, FileSpreadsheet,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch, type SessionUser } from "@/lib/eval-types";
+import { MEDIA_SECTIONS } from "@/lib/media-sections";
 
 type RecordsRow = {
   username: string;
@@ -74,12 +75,16 @@ type AdminDefectSummary = {
 
 type AdminMedia = {
   id: string;
-  type: "IMAGE" | "VIDEO" | "EMBED";
+  type: "IMAGE" | "VIDEO" | "EMBED" | "AUDIO";
   url: string;
   title: string;
   caption: string | null;
+  section: string | null; // apartado de la ficha; null = galería del pie
   createdAt?: string;
 };
+
+/** Valor del selector de ubicación para «galería» (Radix no admite value="") */
+const SECTION_GALLERY = "galeria";
 
 /** Subida multipart (no usa apiFetch para no forzar Content-Type JSON) */
 async function postForm<T>(url: string, form: FormData): Promise<T> {
@@ -769,10 +774,11 @@ function ContentsTab() {
   const [uploadingModel, setUploadingModel] = useState(false);
 
   // Alta de material
-  const [newType, setNewType] = useState<"IMAGE" | "VIDEO" | "EMBED">("IMAGE");
+  const [newType, setNewType] = useState<"IMAGE" | "VIDEO" | "EMBED" | "AUDIO">("IMAGE");
   const [newTitle, setNewTitle] = useState("");
   const [newCaption, setNewCaption] = useState("");
   const [newUrl, setNewUrl] = useState("");
+  const [newSection, setNewSection] = useState<string>(SECTION_GALLERY);
   const [addingMedia, setAddingMedia] = useState(false);
   const mediaFileRef = useRef<HTMLInputElement>(null);
   const modelFileRef = useRef<HTMLInputElement>(null);
@@ -903,7 +909,7 @@ function ContentsTab() {
       if (!file) {
         toast({
           title: "Falta el archivo",
-          description: "Selecciona el archivo de imagen o vídeo que deseas subir",
+          description: "Selecciona el archivo de imagen, vídeo o audio que deseas subir",
           variant: "destructive",
         });
         return;
@@ -916,6 +922,7 @@ function ContentsTab() {
       fd.append("type", newType);
       fd.append("title", newTitle.trim());
       if (newCaption.trim()) fd.append("caption", newCaption.trim());
+      fd.append("section", newSection === SECTION_GALLERY ? "" : newSection);
       if (newType === "EMBED") fd.append("url", newUrl.trim());
       else fd.append("file", mediaFileRef.current!.files![0]);
       await postForm("/api/admin/media", fd);
@@ -927,6 +934,7 @@ function ContentsTab() {
       setNewTitle("");
       setNewCaption("");
       setNewUrl("");
+      setNewSection(SECTION_GALLERY);
       if (mediaFileRef.current) mediaFileRef.current.value = "";
       toast({ title: "Material añadido", description: "Ya está disponible en la ficha del defecto" });
     } catch (err) {
@@ -937,6 +945,30 @@ function ContentsTab() {
       });
     } finally {
       setAddingMedia(false);
+    }
+  }
+
+  /** Cambia el apartado de la ficha donde se muestra un recurso ya subido */
+  async function moveMedia(id: string, sectionValue: string) {
+    try {
+      await apiFetch(`/api/admin/media/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ section: sectionValue === SECTION_GALLERY ? null : sectionValue }),
+      });
+      const data = await apiFetch<{ media: AdminMedia[] }>(
+        `/api/admin/media?code=${encodeURIComponent(selectedCode)}`
+      );
+      setMedia(data.media);
+      const label = sectionValue === SECTION_GALLERY
+        ? "la galería del pie de la ficha"
+        : MEDIA_SECTIONS.find((s) => s.key === sectionValue)?.label ?? sectionValue;
+      toast({ title: "Ubicación actualizada", description: `El recurso se muestra ahora en ${label}` });
+    } catch (err) {
+      toast({
+        title: "Error al cambiar la ubicación",
+        description: err instanceof Error ? err.message : "Error inesperado",
+        variant: "destructive",
+      });
     }
   }
 
@@ -1107,7 +1139,9 @@ function ContentsTab() {
                 Material de apoyo ({media.length})
               </CardTitle>
               <CardDescription>
-                Imágenes, vídeos o contenidos incrustados que acompañan a la ficha de {selected.code}.
+                Imágenes, vídeos, audios o contenidos incrustados que acompañan a la ficha de {selected.code}. Cada
+                recurso se muestra en el apartado que elijas (o en la galería del pie); en la ficha aparecerá un botón
+                junto al título de ese apartado.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1123,6 +1157,11 @@ function ContentsTab() {
                         <Film className="h-5 w-5" aria-hidden="true" />
                       </span>
                     )}
+                    {m.type === "AUDIO" && (
+                      <span className="flex h-14 w-24 shrink-0 items-center justify-center rounded border border-bb-green-line bg-bb-green-tint text-bb-green-dark">
+                        <Volume2 className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                    )}
                     {m.type === "EMBED" && (
                       <span className="flex h-14 w-24 shrink-0 items-center justify-center rounded border bg-bb-purple-tint text-bb-purple-dark">
                         <Link2 className="h-5 w-5" aria-hidden="true" />
@@ -1132,8 +1171,28 @@ function ContentsTab() {
                       <p className="truncate text-sm font-medium text-slate-700">{m.title}</p>
                       {m.caption && <p className="truncate text-xs text-slate-400">{m.caption}</p>}
                       <Badge variant="outline" className="mt-1 text-[10px]">
-                        {m.type === "IMAGE" ? "Imagen" : m.type === "VIDEO" ? "Vídeo" : "Incrustado"}
+                        {m.type === "IMAGE" ? "Imagen" : m.type === "VIDEO" ? "Vídeo" : m.type === "AUDIO" ? "Audio" : "Incrustado"}
                       </Badge>
+                    </div>
+                    <div className="shrink-0 space-y-1">
+                      <Label htmlFor={`med-sec-${m.id}`} className="sr-only">
+                        Ubicación de {m.title}
+                      </Label>
+                      <Select
+                        value={m.section ?? SECTION_GALLERY}
+                        onValueChange={(v) => moveMedia(m.id, v)}
+                      >
+                        <SelectTrigger id={`med-sec-${m.id}`} className="h-8 w-full min-w-52 text-xs" aria-label="Ubicación en la ficha">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value={SECTION_GALLERY}>Galería del pie de la ficha</SelectItem>
+                          {MEDIA_SECTIONS.map((s) => (
+                            <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[10px] text-slate-400">Ubicación en la ficha</p>
                     </div>
                     <Button
                       variant="ghost"
@@ -1166,6 +1225,7 @@ function ContentsTab() {
                       <SelectContent>
                         <SelectItem value="IMAGE"><span className="inline-flex items-center gap-1.5"><ImageIcon className="h-3.5 w-3.5" aria-hidden="true" /> Imagen</span></SelectItem>
                         <SelectItem value="VIDEO"><span className="inline-flex items-center gap-1.5"><Film className="h-3.5 w-3.5" aria-hidden="true" /> Vídeo</span></SelectItem>
+                        <SelectItem value="AUDIO"><span className="inline-flex items-center gap-1.5"><Volume2 className="h-3.5 w-3.5" aria-hidden="true" /> Audio</span></SelectItem>
                         <SelectItem value="EMBED"><span className="inline-flex items-center gap-1.5"><Link2 className="h-3.5 w-3.5" aria-hidden="true" /> Enlace incrustado</span></SelectItem>
                       </SelectContent>
                     </Select>
@@ -1195,17 +1255,40 @@ function ContentsTab() {
                 ) : (
                   <div className="space-y-1.5">
                     <Label htmlFor="med-file">
-                      Archivo {newType === "IMAGE" ? "de imagen (máx. 8 MB)" : "de vídeo (máx. 64 MB)"}
+                      Archivo{" "}
+                      {newType === "IMAGE"
+                        ? "de imagen (máx. 8 MB)"
+                        : newType === "AUDIO"
+                          ? "de audio (máx. 16 MB)"
+                          : "de vídeo (máx. 64 MB)"}
                     </Label>
                     <input
                       ref={mediaFileRef}
                       id="med-file"
                       type="file"
-                      accept={newType === "IMAGE" ? "image/*" : "video/*"}
+                      accept={newType === "IMAGE" ? "image/*" : newType === "AUDIO" ? "audio/*" : "video/*"}
                       className="w-full cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-3 file:rounded-full file:border-0 file:bg-bb-green-dark file:px-3 file:py-1 file:text-sm file:font-semibold file:text-white"
                     />
                   </div>
                 )}
+                <div className="space-y-1.5">
+                  <Label htmlFor="med-section">Ubicación en la ficha</Label>
+                  <Select value={newSection} onValueChange={setNewSection}>
+                    <SelectTrigger id="med-section" className="w-full sm:max-w-md" aria-label="Ubicación en la ficha">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      <SelectItem value={SECTION_GALLERY}>Galería del pie de la ficha</SelectItem>
+                      {MEDIA_SECTIONS.map((s) => (
+                        <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-slate-400">
+                    Elige el apartado donde se enlazará el recurso (aparecerá un botón junto a su título); si lo dejas
+                    en la galería, se mostrará al pie de la ficha como hasta ahora.
+                  </p>
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="med-caption">Pie o descripción (opcional)</Label>
                   <Input

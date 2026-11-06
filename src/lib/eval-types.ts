@@ -32,10 +32,12 @@ export type EvalState = {
 
 export type DefectMediaItem = {
   id: string;
-  type: "IMAGE" | "VIDEO" | "EMBED";
+  type: "IMAGE" | "VIDEO" | "EMBED" | "AUDIO";
   url: string;
   title: string;
   caption: string | null;
+  /** Apartado de la ficha donde se muestra (header/description/risks/causes/action/detection/prevention/regulation); null = galería del pie */
+  section: string | null;
 };
 
 export type DefectData = {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { MEDIA_SECTION_KEYS } from "@/lib/media-sections";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
@@ -8,8 +9,10 @@ import crypto from "crypto";
 /** Límites de subida configurados para el despliegue interno */
 const IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "gif"];
 const VIDEO_EXT = ["mp4", "webm", "ogg", "mov", "m4v"];
+const AUDIO_EXT = ["mp3", "wav", "ogg", "m4a", "aac"];
 const MAX_IMAGE = 8 * 1024 * 1024; // 8 MB
 const MAX_VIDEO = 64 * 1024 * 1024; // 64 MB
+const MAX_AUDIO = 16 * 1024 * 1024; // 16 MB
 const MAX_EMBED_URL = 2048;
 
 /** GET /api/admin/media?code=D001 — material de apoyo de un defecto (ordenado). */
@@ -29,7 +32,7 @@ export async function GET(req: NextRequest) {
       name: true,
       media: {
         orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
-        select: { id: true, type: true, url: true, title: true, caption: true, createdAt: true },
+        select: { id: true, type: true, url: true, title: true, caption: true, section: true, createdAt: true },
       },
     },
   });
@@ -41,7 +44,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-/** POST /api/admin/media — añade material de apoyo (archivo IMAGE/VIDEO o enlace EMBED). */
+/** POST /api/admin/media — añade material de apoyo (archivo IMAGE/VIDEO/AUDIO o enlace EMBED). */
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session || session.role !== "ADMIN") {
@@ -59,10 +62,15 @@ export async function POST(req: NextRequest) {
   const type = String(form.get("type") || "").trim().toUpperCase();
   const title = String(form.get("title") || "").trim();
   const caption = String(form.get("caption") || "").trim() || null;
+  const sectionRaw = String(form.get("section") || "").trim();
+  const section = sectionRaw === "" ? null : sectionRaw;
 
   if (!code) return NextResponse.json({ error: "Falta el código del defecto" }, { status: 400 });
-  if (!["IMAGE", "VIDEO", "EMBED"].includes(type)) {
-    return NextResponse.json({ error: "Tipo de material no válido (IMAGE, VIDEO o EMBED)" }, { status: 400 });
+  if (!["IMAGE", "VIDEO", "EMBED", "AUDIO"].includes(type)) {
+    return NextResponse.json({ error: "Tipo de material no válido (IMAGE, VIDEO, AUDIO o EMBED)" }, { status: 400 });
+  }
+  if (section && !MEDIA_SECTION_KEYS.includes(section)) {
+    return NextResponse.json({ error: "Apartado de la ficha no válido" }, { status: 400 });
   }
   if (!title) return NextResponse.json({ error: "El material necesita un título" }, { status: 400 });
   if (title.length > 200) return NextResponse.json({ error: "El título es demasiado largo (máx. 200)" }, { status: 400 });
@@ -91,13 +99,18 @@ export async function POST(req: NextRequest) {
     const ext = (file.name.split(".").pop() || "").toLowerCase();
     const isImage = type === "IMAGE" && IMAGE_EXT.includes(ext);
     const isVideo = type === "VIDEO" && VIDEO_EXT.includes(ext);
-    if (!isImage && !isVideo) {
+    const isAudio = type === "AUDIO" && AUDIO_EXT.includes(ext);
+    if (!isImage && !isVideo && !isAudio) {
       return NextResponse.json(
-        { error: `Formato no permitido para ${type}: extensiones aceptadas ${type === "IMAGE" ? IMAGE_EXT.join(", ") : VIDEO_EXT.join(", ")}` },
+        {
+          error: `Formato no permitido para ${type}: extensiones aceptadas ${
+            type === "IMAGE" ? IMAGE_EXT.join(", ") : type === "AUDIO" ? AUDIO_EXT.join(", ") : VIDEO_EXT.join(", ")
+          }`,
+        },
         { status: 400 }
       );
     }
-    const max = isImage ? MAX_IMAGE : MAX_VIDEO;
+    const max = isImage ? MAX_IMAGE : isAudio ? MAX_AUDIO : MAX_VIDEO;
     if (file.size > max) {
       return NextResponse.json(
         { error: `El archivo excede el límite de ${Math.round(max / (1024 * 1024))} MB` },
@@ -125,9 +138,10 @@ export async function POST(req: NextRequest) {
       url,
       title,
       caption,
+      section,
       orderIndex: (last?.orderIndex ?? 0) + 1,
     },
-    select: { id: true, type: true, url: true, title: true, caption: true },
+    select: { id: true, type: true, url: true, title: true, caption: true, section: true },
   });
 
   return NextResponse.json({ ok: true, media });

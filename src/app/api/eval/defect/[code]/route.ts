@@ -18,7 +18,7 @@ export async function GET(
     include: {
       media: {
         orderBy: [{ orderIndex: "asc" as const }, { createdAt: "asc" as const }],
-        select: { id: true, type: true, url: true, title: true, caption: true },
+        select: { id: true, type: true, url: true, title: true, caption: true, section: true },
       },
     },
   });

@@ -257,7 +257,6 @@ async function main() {
 
   // Limpieza y recarga de catálogo
   await db.finalAnswer.deleteMany();
-  await db.codeAnswer.deleteMany();
   await db.attempt.deleteMany();
   await db.question.deleteMany();
   await db.defect.deleteMany();
