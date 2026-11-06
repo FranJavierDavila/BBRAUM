@@ -1,0 +1,27 @@
+[Unit]
+Description=B. Braun · Evaluación de Inspección Visual (Next.js standalone)
+After=network.target
+
+[Service]
+Type=simple
+User=bbraun
+Group=bbraun
+WorkingDirectory=/opt/bbraun/app
+# Base de datos SQLite: ruta ABSOLUTA (Prisma la exige así)
+Environment=DATABASE_URL=file:/opt/bbraun/app/datos/bbraun.db
+# Secreto de firma de las cookies de sesión — CAMBIAR por un valor largo y aleatorio
+Environment=AUTH_SECRET=CAMBIAR-ESTE-SECRETO-aleatorio-largo-64
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /opt/bbraun/app/server.js
+Restart=always
+RestartSec=3
+# Endurecimiento básico
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/opt/bbraun/app/datos /opt/bbraun/app/public/uploads
+
+[Install]
+WantedBy=multi-user.target
