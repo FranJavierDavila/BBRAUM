@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, CheckCircle2 } from "lucide-react";
+import { defectLabel } from "@/lib/defect-label";
 
 const FALLBACK_CODES = Array.from({ length: 40 }, (_, i) => `D${String(i + 1).padStart(3, "0")}`);
 
-type CatalogDefect = { code: string; name: string; severity: string };
+type CatalogDefect = { code: string; name: string; displayName?: string | null; severity: string };
 
 /** Tabla del catálogo de la sección Teoría: repaso libre, sin límites ni bloqueos.
  *  Cada tarjeta muestra el nombre del defecto (editable por el administrador) con su código. */
@@ -81,7 +82,8 @@ export function CodeTable({
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {items.map((d) => {
               const seen = visited.has(d.code);
-              const named = Boolean(d.name) && d.name !== d.code;
+              const label = defectLabel(d);
+              const named = label !== d.code;
               const ring = seen
                 ? "border-bb-green bg-bb-green-tint shadow-sm hover:-translate-y-0.5 hover:shadow-md"
                 : "cursor-pointer border-bb-green-line bg-white shadow-sm hover:-translate-y-0.5 hover:border-bb-green hover:bg-bb-green-tint hover:shadow-md active:translate-y-0";
@@ -90,7 +92,7 @@ export function CodeTable({
                   key={d.code}
                   type="button"
                   onClick={() => onSelectCode(d.code)}
-                  aria-label={`Abrir la ficha ${named ? `«${d.name}»` : `del código ${d.code}`}${
+                  aria-label={`Abrir la ficha ${named ? `«${label}»` : `del código ${d.code}`}${
                     seen ? " (ya repasado)" : ""
                   }`}
                   className={`flex min-h-[3.25rem] flex-col justify-center gap-0.5 rounded-lg border px-2.5 py-1.5 text-left transition-all ${ring}`}
@@ -103,9 +105,9 @@ export function CodeTable({
                       </span>
                       <span
                         className="line-clamp-2 text-xs font-semibold leading-tight text-bb-green-dark"
-                        title={d.name}
+                        title={label}
                       >
-                        {d.name}
+                        {label}
                       </span>
                     </>
                   ) : (

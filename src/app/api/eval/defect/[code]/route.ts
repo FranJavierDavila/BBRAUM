@@ -30,6 +30,7 @@ export async function GET(
     defect: {
       code: defect.code,
       name: defect.name,
+      displayName: defect.displayName,
       category: defect.category,
       description: defect.description,
       detail: defect.detail,

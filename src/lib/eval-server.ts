@@ -71,7 +71,7 @@ export async function getPruebaQuestions(attemptId: string) {
     orderBy: { orderIndex: "asc" },
     include: {
       question: { select: { text: true, optionA: true, optionB: true, optionC: true } },
-      defect: { select: { code: true, name: true, severity: true, modelPath: true } },
+      defect: { select: { code: true, name: true, displayName: true, severity: true, modelPath: true } },
     },
   });
 
@@ -82,6 +82,7 @@ export async function getPruebaQuestions(attemptId: string) {
     answeredAt: r.answeredAt,
     defectCode: r.defect.code,
     defectName: r.defect.name,
+    defectDisplayName: r.defect.displayName,
     defectSeverity: r.defect.severity,
     modelPath: r.defect.modelPath,
     text: r.question.text,

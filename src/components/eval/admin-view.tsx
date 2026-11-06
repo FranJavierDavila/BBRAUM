@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch, type SessionUser } from "@/lib/eval-types";
+import { defectLabel } from "@/lib/defect-label";
 import { MEDIA_SECTIONS } from "@/lib/media-sections";
 
 type RecordsRow = {
@@ -58,6 +59,7 @@ type ModelInfo = { path: string; name: string };
 type AdminDefectSummary = {
   code: string;
   name: string;
+  displayName: string | null;
   category: string;
   severity: string;
   modelPath: string;
@@ -444,7 +446,7 @@ function QrTab() {
                       />
                     </TableCell>
                     <TableCell className="font-mono text-xs font-bold text-slate-700">{d.code}</TableCell>
-                    <TableCell className="max-w-72 truncate text-sm text-slate-700" title={d.name}>{d.name}</TableCell>
+                    <TableCell className="max-w-72 truncate text-sm text-slate-700" title={defectLabel(d)}>{defectLabel(d)}</TableCell>
                     <TableCell className="text-xs text-slate-500">{d.category}</TableCell>
                     <TableCell className="text-center">
                       <a
@@ -767,6 +769,7 @@ function ContentsTab() {
   const [selectedCode, setSelectedCode] = useState<string>("");
   const [form, setForm] = useState<Record<ContentFieldKey, string>>(EMPTY_FORM);
   const [name, setName] = useState<string>("");
+  const [displayName, setDisplayName] = useState<string>("");
   const [modelPath, setModelPath] = useState<string>("");
   const [media, setMedia] = useState<AdminMedia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -827,6 +830,7 @@ function ContentsTab() {
       });
       setModelPath(d.modelPath);
       setName(d.name ?? "");
+      setDisplayName(d.displayName ?? "");
     }
     apiFetch<{ media: AdminMedia[] }>(`/api/admin/media?code=${encodeURIComponent(selectedCode)}`)
       .then((data) => setMedia(data.media))
@@ -839,7 +843,7 @@ function ContentsTab() {
     try {
       await apiFetch("/api/admin/defect-content", {
         method: "PUT",
-        body: JSON.stringify({ code: selectedCode, name, ...form, modelPath }),
+        body: JSON.stringify({ code: selectedCode, name, displayName, ...form, modelPath }),
       });
       await refreshDefects();
       toast({
@@ -1013,7 +1017,7 @@ function ContentsTab() {
               {defects.map((d) => (
                 <SelectItem key={d.code} value={d.code}>
                   <span className="font-mono font-semibold">{d.code}</span>
-                  <span className="ml-2 text-slate-600">{d.name}</span>
+                  <span className="ml-2 text-slate-600">{defectLabel(d)}</span>
                   {d.mediaCount > 0 && (
                     <span className="ml-2 rounded bg-bb-green-tint px-1 text-[10px] text-bb-green-dark">
                       {d.mediaCount} media
@@ -1032,14 +1036,15 @@ function ContentsTab() {
           <Card className="shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">
-                Plantilla de contenido — <span className="font-mono">{selected.code}</span> {selected.name}
+                Plantilla de contenido — <span className="font-mono">{selected.code}</span> {defectLabel(selected)}
               </CardTitle>
               <CardDescription>
-                Estructura validada de 7 apartados: 1 · Defecto (código, nombre y familia), 2 · Descripción
+                Estructura fija de 7 apartados: 1 · Defecto (código, nombre y familia), 2 · Descripción
                 breve del defecto, 3 · Riesgos para el paciente, 4 · Causas habituales, 5 · Actuación
                 correcta, 6 · Guía para su detección durante la inspección y 7 · Prevención y buenas
-                prácticas. Deja en blanco las secciones que no quieras mostrar (salvo descripción y detalle,
-                obligatorios).
+                prácticas. Los 7 apartados se muestran siempre en ese orden: si dejas alguno en blanco,
+                la ficha indica que está pendiente de completar y conserva su numeración (salvo
+                descripción y detalle, obligatorios).
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1057,6 +1062,23 @@ function ContentsTab() {
                   Cámbialo aquí si el cliente usa otra nomenclatura: se actualiza a la vez en la tabla de Teoría,
                   en el apartado 1 de la ficha y en el visor 3D. El código ({selected.code}) nunca cambia, para no
                   romper QR ni registros.
+                </p>
+              </div>
+
+              {/* Nombre de visualización (etiqueta opcional con respaldo al nombre) */}
+              <div className="space-y-1.5 rounded-lg border bg-slate-50 p-3">
+                <Label htmlFor="cnt-display-name">Nombre de visualización (opcional)</Label>
+                <Input
+                  id="cnt-display-name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder={`Vacío = se muestra «${name || selected.code}»`}
+                  maxLength={120}
+                />
+                <p className="text-xs text-slate-400">
+                  Etiqueta que verán los evaluadores en el catálogo, la ficha, el visor 3D, la prueba, el
+                  resultado y las etiquetas QR. Si se deja vacío se muestra el nombre del defecto; si ambos
+                  están vacíos, el código. Útil para variantes de nomenclatura sin perder el nombre oficial.
                 </p>
               </div>
 

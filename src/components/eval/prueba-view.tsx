@@ -15,6 +15,7 @@ import {
 import {
   apiFetch, type PruebaQuestion, type FinalResult,
 } from "@/lib/eval-types";
+import { defectLabel } from "@/lib/defect-label";
 
 /**
  * Prueba de Evaluación: batería de preguntas definida por el administrador.
@@ -81,6 +82,7 @@ export function PruebaView({
   }, []);
 
   const q = questions[index];
+  const qLabel = q ? defectLabel({ code: q.defectCode, name: q.defectName, displayName: q.defectDisplayName }) : "";
   const answeredCount = questions.filter((x) => x.selected !== null).length;
 
   async function answer() {
@@ -208,7 +210,7 @@ export function PruebaView({
         <div key={`model-${q.id}`}>
           <Viewer3DCard
             src={q.modelPath}
-            name={q.defectName}
+            name={qLabel}
             severity={q.defectSeverity}
             code={q.defectCode}
           />

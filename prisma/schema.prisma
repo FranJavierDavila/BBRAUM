@@ -28,6 +28,7 @@ model Defect {
   id          String       @id @default(cuid())
   code        String       @unique // código alfanumérico, ej. "D017"
   name        String
+  displayName String? // nombre de visualización opcional; si se deja vacío se muestra `name`
   category    String
   description String
   detail      String

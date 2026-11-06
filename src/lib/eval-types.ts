@@ -43,6 +43,8 @@ export type DefectMediaItem = {
 export type DefectData = {
   code: string;
   name: string;
+  /** Nombre de visualización opcional; si viene, se muestra en lugar de `name` */
+  displayName?: string | null;
   category: string;
   description: string;
   detail: string;
@@ -83,6 +85,7 @@ export type PruebaQuestion = {
   answeredAt: string | null;
   defectCode: string;
   defectName: string;
+  defectDisplayName?: string | null;
   defectSeverity: string;
   modelPath: string;
   text: string;
@@ -95,6 +98,7 @@ export type FinalResultDetail = {
   orderIndex: number;
   defectCode: string;
   defectName: string;
+  defectDisplayName?: string | null;
   isCorrect: boolean;
   selected: string | null;
   correctOption: string;

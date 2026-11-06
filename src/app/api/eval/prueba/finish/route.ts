@@ -39,7 +39,7 @@ export async function POST() {
     where: { attemptId: attempt.id },
     orderBy: { orderIndex: "asc" },
     include: {
-      defect: { select: { code: true, name: true } },
+      defect: { select: { code: true, name: true, displayName: true } },
       question: { select: { correct: true, explanation: true } },
     },
   });
@@ -52,6 +52,7 @@ export async function POST() {
       orderIndex: d.orderIndex,
       defectCode: d.defect.code,
       defectName: d.defect.name,
+      defectDisplayName: d.defect.displayName,
       isCorrect: d.isCorrect,
       selected: d.selected,
       correctOption: d.question.correct,

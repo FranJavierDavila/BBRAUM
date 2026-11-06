@@ -17,14 +17,17 @@ import {
 import {
   apiFetch, type DefectData, type DefectMediaItem, type QuizQuestion, type AnswerFeedback,
 } from "@/lib/eval-types";
+import { defectLabel } from "@/lib/defect-label";
 import { mediaSectionShort } from "@/lib/media-sections";
 
 /**
- * Apartados 3-7 de la ficha, en el orden y con los títulos exactos validados por
- * el cliente. El apartado 1 («Defecto») es la identificación y el 2 («Descripción
- * breve del defecto») se compone con description + detail; ambos se renderizan
- * siempre. Los apartados con contenido vacío (ficha sin completar por el
- * administrador) se ocultan.
+ * Estructura fija de la ficha: 7 apartados numerados, siempre visibles y en el
+ * mismo orden (la numeración no depende de qué apartados estén completados).
+ * El apartado 1 («Defecto») es la identificación y el 2 («Descripción breve del
+ * defecto») se compone con description + detail. Los apartados 3-7 muestran un
+ * aviso discreto mientras el administrador no haya completado su texto, pero
+ * mantienen su posición, su número y los botones de sus recursos multimedia.
+ * Las referencias normativas se muestran como nota al pie, fuera de los 7.
  */
 const SECTIONS: Array<{
   key: "risks" | "causes" | "action" | "detection" | "prevention";
@@ -154,6 +157,16 @@ function MediaChips({
   );
 }
 
+/** Aviso de apartado pendiente de completar por el administrador */
+function SectionPending() {
+  return (
+    <p className="mt-1.5 text-sm italic leading-relaxed text-slate-400">
+      Apartado pendiente de completar por el administrador. Los recursos multimedia enlazados, si los
+      hay, se muestran en los botones de la cabecera.
+    </p>
+  );
+}
+
 /** Ficha de Teoría: contenido íntegro del defecto + autoevaluación de 1 pregunta.
  *  `showQuiz=false` oculta la autoevaluación (fichas abiertas desde QR cuando el
  *  administrador ha desactivado la evaluación en los QR). */
@@ -213,7 +226,7 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
     );
   }
 
-  const availableSections = SECTIONS.filter((s) => defect[s.key]);
+  const defectTitle = defectLabel(defect);
   const media = defect.media ?? [];
 
   /** Abre el visor con el grupo de recursos del apartado indicado.
@@ -246,7 +259,7 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Modelo 3D (el GLB asignado a este defecto) */}
         <div className="self-start lg:sticky lg:top-4">
-          <Viewer3DCard src={defect.modelPath} name={defect.name} severity={defect.severity} code={defect.code} />
+          <Viewer3DCard src={defect.modelPath} name={defectTitle} severity={defect.severity} code={defect.code} />
         </div>
 
         {/* Ficha con la estructura validada de 7 apartados */}
@@ -259,7 +272,7 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
             <section className="rounded-lg border bg-slate-50 p-3">
               <SectionHeadingRow n={1} label="Defecto" icon={CircleAlert} media={bySection("header")} onOpen={(t, id) => openViewer("header", t, id)} />
               <p className="mt-2 text-sm font-semibold text-slate-800">
-                <span className="font-mono">{defect.code}</span> — {defect.name}
+                <span className="font-mono">{defect.code}</span> — {defectTitle}
               </p>
               <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                 Familia: {defect.category}
@@ -280,8 +293,8 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
               <MediaChips items={bySection("description")} onOpen={(t, id) => openViewer("description", t, id)} />
             </section>
 
-            {/* Apartados 3-7 · contenidos teóricos */}
-            {availableSections.map((s, i) => {
+            {/* Apartados 3-7 · estructura fija, se muestren o no completados */}
+            {SECTIONS.map((s, i) => {
               const sectionMedia = bySection(s.key);
               return (
                 <section key={s.key} className="rounded-lg border p-3">
@@ -292,9 +305,13 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
                     media={sectionMedia}
                     onOpen={(t, id) => openViewer(s.key, t, id)}
                   />
-                  <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-slate-600">
-                    {defect[s.key]}
-                  </p>
+                  {defect[s.key] ? (
+                    <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-slate-600">
+                      {defect[s.key]}
+                    </p>
+                  ) : (
+                    <SectionPending />
+                  )}
                   <MediaChips items={sectionMedia} onOpen={(t, id) => openViewer(s.key, t, id)} />
                 </section>
               );
@@ -317,7 +334,7 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
       </div>
 
       {/* Autoevaluación de Teoría: 1 pregunta aleatoria del banco del defecto */}
-      {showQuiz && <QuizCard code={defect.code} defectName={defect.name} />}
+      {showQuiz && <QuizCard code={defect.code} defectName={defectTitle} />}
 
       {/* Material de apoyo sin apartado asignado (galería del pie) */}
       {galleryMedia.length > 0 && (

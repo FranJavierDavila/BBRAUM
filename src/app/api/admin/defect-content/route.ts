@@ -27,6 +27,7 @@ export async function GET() {
     select: {
       code: true,
       name: true,
+      displayName: true,
       category: true,
       severity: true,
       modelPath: true,
@@ -46,6 +47,7 @@ export async function GET() {
     defects: defects.map((d) => ({
       code: d.code,
       name: d.name,
+      displayName: d.displayName,
       category: d.category,
       severity: d.severity,
       modelPath: d.modelPath,
@@ -121,6 +123,23 @@ export async function PUT(req: NextRequest) {
     data.name = name;
   }
 
+  // Nombre de visualización: opcional, sustituye a `name` en todas las superficies
+  // visibles (catálogo, ficha, visor 3D, prueba, resultado y etiquetas QR).
+  // Vacío o en blanco lo desactiva y vuelve a mostrarse el nombre.
+  if (body.displayName !== undefined) {
+    if (body.displayName === null) {
+      data.displayName = null;
+    } else if (typeof body.displayName !== "string") {
+      return NextResponse.json({ error: "El nombre de visualización debe ser texto" }, { status: 400 });
+    } else {
+      const display = body.displayName.trim();
+      if (display.length > 120) {
+        return NextResponse.json({ error: "El nombre de visualización excede la longitud máxima (120)" }, { status: 400 });
+      }
+      data.displayName = display || null;
+    }
+  }
+
   // Modelo 3D: debe apuntar a un GLB existente en /public/models
   if (typeof body.modelPath === "string" && body.modelPath.trim()) {
     const modelPath = body.modelPath.trim();
@@ -141,6 +160,7 @@ export async function PUT(req: NextRequest) {
     defect: {
       code: updated.code,
       name: updated.name,
+      displayName: updated.displayName,
       modelPath: updated.modelPath,
       causes: updated.causes,
       risks: updated.risks,

@@ -2,7 +2,7 @@
 
 Aplicación de formación en control de calidad para la inspección visual de botellas de suero: catálogo de 40 defectos con ficha técnica estructurada, visor 3D del envase, pruebas de evaluación con modelos 3D por pregunta, panel de administración y sistema de acceso por códigos QR.
 
-Versión: **v1.4**
+Versión: **v1.4.2** · Guía de operación: **[INSTRUCCIONES-DESPLIEGUE.md](INSTRUCCIONES-DESPLIEGUE.md)**
 
 ## Demo pública (GitHub Pages)
 
@@ -15,6 +15,7 @@ usuario, panel de administración ni exportación: eso requiere el servidor inte
 ## Características
 
 - **Teoría** — Catálogo de 40 códigos de defecto (D001–D040). Cada ficha sigue la estructura validada de 7 apartados numerados y siempre visibles: 1 · Defecto, 2 · Descripción breve, 3 · Riesgos para el paciente, 4 · Causas habituales, 5 · Actuación correcta, 6 · Guía para su detección durante la inspección, 7 · Prevención y buenas prácticas (con nota normativa al pie).
+- **Nomenclatura editable** — El administrador puede cambiar el nombre de cada defecto y definir además un «nombre de visualización» opcional; todas las superficies (catálogo, ficha, visor 3D, prueba, resultado y etiquetas QR) resuelven la etiqueta con la cadena `displayName → nombre → código`. Incluye herramienta de renombrado masivo (`herramientas/`).
 - **Visor 3D** — three.js 0.186 con iluminación de entorno PBR (RoomEnvironment + PMREM), tone mapping ACESFilmic, fondo degradado de estudio, OrbitControls y maximizado. Los modelos GLB comprimidos con Draco se decodifican con decodificadores locales en `public/draco/` (funciona sin Internet).
 - **Prueba de Evaluación** — Batería configurable (1–40 preguntas, el administrador la ajusta), un modelo 3D por pregunta con respuesta inmediata, progreso y resultado con umbral de superación.
 - **Panel de administración** — Gestión de contenidos (los 7 apartados editables por defecto), configuración de la prueba (nº de preguntas, permitir o no consultar la Teoría durante la prueba), registros de intentos con filtro y exportación CSV/Excel, y pestaña de **Códigos QR**: URL base configurable, PNG por código, ZIP descargable y hoja de etiquetas A4 imprimible. Escaneando el QR se abre la ficha del defecto directamente.
@@ -48,10 +49,10 @@ Opcional: `bun scripts/apply-content.ts` y `bun scripts/seed-media.ts` (contenid
 bun run build                 # compila el standalone y copia .next/static + public
 PORT=3000 HOSTNAME=0.0.0.0 \
 DATABASE_URL="file:$PWD/datos/bbraun.db" \
-AUTH_SECRET="<secreto>" NODE_ENV=production node .next/standalone/server.js
+AUTH_SECRET="<secreto>" NODE_ENV=production node .next/standalone/github-repo/server.js
 ```
 
-> Nota Next 16: el build standalone **no incluye** `.next/static`; el script `build` ya lo copia. Si lo lanzas a mano sin copiarlo, la página se carga pero queda en blanco (los chunks dan 404). Al arrancar con `node server.js` directamente, Prisma exige `DATABASE_URL` como ruta **absoluta** en el entorno.
+> Nota Next 16: el build standalone anida el servidor en `.next/standalone/github-repo/` y **no incluye** `.next/static`; el script `build` ya copia los estáticos y `public` a esa ruta. Si lo lanzas a mano sin copiarlos, la página se carga pero queda en blanco (los chunks dan 404). Al arrancar con `node server.js` directamente, Prisma exige `DATABASE_URL` como ruta **absoluta** en el entorno.
 
 ## Estructura
 
@@ -71,4 +72,5 @@ public/draco/             Decodificadores Draco locales
 
 - Proyecto interno de formación (Departamento de Calidad). Uso interno.
 - La base de datos (SQLite) se crea localmente con los seeds; no se versiona.
+- Despliegue en servidor propio (Linux/systemd/Nginx, backups, actualizaciones, IIS): ver `servidor/`, `herramientas/` e **[INSTRUCCIONES-DESPLIEGUE.md](INSTRUCCIONES-DESPLIEGUE.md)**.
 - El paquete de despliegue autocontenido (con Node.js portable para Windows, instrucciones IIS/HTTPS y manual funcional) se distribuye aparte como ZIP.

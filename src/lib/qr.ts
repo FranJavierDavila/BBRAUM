@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import { db } from "@/lib/db";
+import { defectLabel, type DefectNamer } from "@/lib/defect-label";
 
 /**
  * Utilidades de generación de códigos QR para los 40 compartimentos del
@@ -59,12 +60,12 @@ export async function findDefectByCode(rawCode: string) {
 export async function listDefectsForLabels() {
   return db.defect.findMany({
     orderBy: { order: "asc" },
-    select: { code: true, name: true, category: true },
+    select: { code: true, name: true, displayName: true, category: true },
   });
 }
 
 /** Texto del LEEME incluido en el ZIP de etiquetas. */
-export function qrReadmeText(baseUrl: string, defects: { code: string; name: string }[]): string {
+export function qrReadmeText(baseUrl: string, defects: DefectNamer[]): string {
   const lines: string[] = [];
   lines.push("B. BRAUN · EVALUACIÓN DE INSPECCIÓN VISUAL");
   lines.push("Etiquetas QR para el expositor de botellas de suero");
@@ -85,13 +86,13 @@ export function qrReadmeText(baseUrl: string, defects: { code: string; name: str
   lines.push(`URL de ejemplo: ${defectUrl(baseUrl, defects[0]?.code ?? "D001")}`);
   lines.push("");
   lines.push("Códigos incluidos:");
-  for (const d of defects) lines.push(`  - ${d.code}: ${d.name}`);
+  for (const d of defects) lines.push(`  - ${d.code}: ${defectLabel(d)}`);
   lines.push("");
   return lines.join("\n");
 }
 
 /** Hoja HTML de etiquetas lista para imprimir (A4, 4 columnas). */
-export function labelsHtml(baseUrl: string, defects: { code: string; name: string; category: string }[], dataUrls: Map<string, string>): string {
+export function labelsHtml(baseUrl: string, defects: (DefectNamer & { category: string })[], dataUrls: Map<string, string>): string {
   const cells = defects
     .map((d) => {
       const img = dataUrls.get(d.code) ?? "";
@@ -99,7 +100,7 @@ export function labelsHtml(baseUrl: string, defects: { code: string; name: strin
           <div class="qr"><img src="${img}" alt="QR ${d.code}" /></div>
           <div class="info">
             <div class="codigo">${d.code}</div>
-            <div class="nombre">${escapeHtml(d.name)}</div>
+            <div class="nombre">${escapeHtml(defectLabel(d))}</div>
             <div class="categoria">${escapeHtml(d.category)}</div>
             <div class="url">${escapeHtml(defectUrl(baseUrl, d.code))}</div>
           </div>

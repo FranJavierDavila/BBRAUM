@@ -8,6 +8,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, XCircle, RotateCcw, PartyPopper } from "lucide-react";
 import type { FinalResult } from "@/lib/eval-types";
+import { defectLabel } from "@/lib/defect-label";
 
 export function ResultView({
   result,
@@ -72,7 +73,9 @@ export function ResultView({
                   <XCircle className="h-4 w-4 shrink-0 text-red-500" aria-hidden="true" />
                 )}
                 <span className="font-mono font-bold text-slate-600">{d.defectCode}</span>
-                <span className="flex-1 truncate text-slate-600">{d.defectName}</span>
+                <span className="flex-1 truncate text-slate-600">
+                  {defectLabel({ code: d.defectCode, name: d.defectName, displayName: d.defectDisplayName })}
+                </span>
               </div>
             ))}
           </div>
