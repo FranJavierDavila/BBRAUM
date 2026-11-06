@@ -4,6 +4,14 @@ Aplicación de formación en control de calidad para la inspección visual de bo
 
 Versión: **v1.4**
 
+## Demo pública (GitHub Pages)
+
+Una **demo estática** de la v1.4 está publicada en: **https://franjavierdavila.github.io/BBRAUM/**
+
+Incluye la Teoría completa (40 defectos con la ficha de 7 apartados), el visor 3D y una
+autoevaluación de demostración (los resultados no se registran). No incluye acceso con
+usuario, panel de administración ni exportación: eso requiere el servidor interno.
+
 ## Características
 
 - **Teoría** — Catálogo de 40 códigos de defecto (D001–D040). Cada ficha sigue la estructura validada de 7 apartados numerados y siempre visibles: 1 · Defecto, 2 · Descripción breve, 3 · Riesgos para el paciente, 4 · Causas habituales, 5 · Actuación correcta, 6 · Guía para su detección durante la inspección, 7 · Prevención y buenas prácticas (con nota normativa al pie).
