@@ -165,7 +165,7 @@
 </main>
 
 <footer class="site">
-  Demo pública generada a partir de la v1.4 del sistema interno · B. Braun — Departamento de Calidad · Uso interno
+  Demo pública generada a partir de la v1.4.2 del sistema interno · B. Braun — Departamento de Calidad · Uso interno
 </footer>
 
 <script type="importmap">
@@ -342,10 +342,13 @@ function openMax(src, name){
 /* ================= Vistas ================= */
 function defectByCode(c){ return DATA.defects.find(d => d.code === c); }
 
+/** Etiqueta visible del defecto: displayName → nombre → código (v1.4.2) */
+function dLabel(d){ const dn = (d.displayName||"").trim(); return dn || d.name || d.code; }
+
 function renderTeoria(){
   const v = $("#view");
   const list = DATA.defects.filter(d =>
-    !state.search || (d.code+" "+d.name+" "+d.category).toLowerCase().includes(state.search.toLowerCase()));
+    !state.search || (d.code+" "+dLabel(d)+" "+d.category).toLowerCase().includes(state.search.toLowerCase()));
   v.innerHTML = `
     <div class="search">${I.search}<input id="q" type="search" placeholder="Buscar por código, defecto o familia…" value="${esc(state.search)}"></div>
     <p class="count">${list.length} de ${DATA.defects.length} códigos</p>
@@ -354,7 +357,7 @@ function renderTeoria(){
         <thead><tr><th>Código</th><th>Defecto</th><th>Familia</th><th>Severidad</th></tr></thead>
         <tbody>
           ${list.map(d => `<tr class="row" data-code="${esc(d.code)}">
-            <td class="mono">${esc(d.code)}</td><td>${esc(d.name)}</td><td>${esc(d.category)}</td>
+            <td class="mono">${esc(d.code)}</td><td>${esc(dLabel(d))}</td><td>${esc(d.category)}</td>
             <td><span class="badge sev-${esc(d.severity)}">${SEV_TEXT[d.severity]||esc(d.severity)}</span></td>
           </tr>`).join("")}
         </tbody>
@@ -371,21 +374,21 @@ function renderFicha(code){
   const d = defectByCode(code);
   const v = $("#view");
   if (!d) { renderTeoria(); return; }
-  const secs = SECTIONS.filter(s => d[s.key]);
+  const secs = SECTIONS; // estructura fija v1.4.2: los 7 apartados, siempre visibles
   v.innerHTML = `
     <div class="backrow">
       <button class="btn-ghost" data-back>${I.back} Volver a la tabla</button>
       <span class="badge green">Teoría · repaso libre</span>
     </div>
     <div class="grid2">
-      ${viewerHTML(d.modelPath, d.name, d.severity, d.code)}
+      ${viewerHTML(d.modelPath, dLabel(d), d.severity, d.code)}
       <div class="card">
         <div class="card-h"><h2>Ficha del defecto</h2></div>
         <div class="card-b">
           <section class="sec grey">
             <h3><span class="n">1</span>${I.alert} Defecto</h3>
             <p style="margin-top:8px;font-weight:600;color:var(--slate-800)">
-              <span class="mono" style="font-family:ui-monospace,Menlo,monospace">${esc(d.code)}</span> — ${esc(d.name)}</p>
+              <span class="mono" style="font-family:ui-monospace,Menlo,monospace">${esc(d.code)}</span> — ${esc(dLabel(d))}</p>
             <p class="fam">Familia: ${esc(d.category)}
               <span class="badge sev-${esc(d.severity)}">Severidad: ${SEV_TEXT[d.severity]||esc(d.severity)}</span></p>
           </section>
@@ -395,7 +398,7 @@ function renderFicha(code){
           </section>
           ${secs.map((s,i) => `<section class="sec">
             <h3><span class="n">${i+3}</span>${s.icon} ${s.label}</h3>
-            <div class="tx">${esc(d[s.key])}</div></section>`).join("")}
+            ${d[s.key] ? `<div class="tx">${esc(d[s.key])}</div>` : `<div class="tx" style="color:var(--slate-400);font-style:italic">Apartado pendiente de completar por el administrador.</div>`}</section>`).join("")}
           ${d.regulation ? `<p class="regnote">${I.scale}<span>Referencias normativas: ${esc(d.regulation)}</span></p>` : ""}
         </div>
       </div>
@@ -415,7 +418,7 @@ function mountFichaQuiz(d){
         <span class="badge green">Autoevaluación · 1 pregunta</span></h2></div>
       <div class="card-b" id="quizBody">
         ${!q ? `<div class="row" style="justify-content:space-between">
-          <p class="muted" style="max-width:640px">Comprueba cuánto has aprendido sobre <strong>${esc(d.name)}</strong>.
+          <p class="muted" style="max-width:640px">Comprueba cuánto has aprendido sobre <strong>${esc(dLabel(d))}</strong>.
           Se te propondrá 1 pregunta escogida al azar del banco de este defecto: si repites el repaso, puede tocar una pregunta distinta.</p>
           <button class="btn" id="qStart">${I.spark} Comenzar autoevaluación</button></div>`
         : `<p class="qtext">${esc(q.text)}</p>
@@ -541,7 +544,7 @@ function renderPrueba(){
           <p style="font-size:12px;color:var(--slate-400);margin-top:6px">Demo: el resultado no queda registrado en el sistema.</p></div>
         <ul class="rev" style="margin-top:12px">
           ${p.answers.map(a => `<li>${a.ok ? `<span style="color:var(--emerald-600)">${I.check}</span>` : `<span style="color:var(--red-700)">${I.x}</span>`}
-            <span><span class="mono">${esc(a.d.code)}</span> — ${esc(a.d.name)}</span>
+            <span><span class="mono">${esc(a.d.code)}</span> — ${esc(dLabel(a.d))}</span>
             <span class="badge mono" style="margin-left:auto"><a href="#D/${esc(a.d.code)}" style="text-decoration:none">Ver ficha</a></span></li>`).join("")}
         </ul>
         <div class="row" style="margin-top:16px">
