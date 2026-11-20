@@ -20,6 +20,7 @@ usuario, panel de administración ni exportación: eso requiere el servidor inte
 - **Prueba de Evaluación** — Batería configurable (1–40 preguntas, el administrador la ajusta), un modelo 3D por pregunta con respuesta inmediata, progreso y resultado con umbral de superación.
 - **Panel de administración** — Gestión de contenidos (los 7 apartados editables por defecto), configuración de la prueba (nº de preguntas, permitir o no consultar la Teoría durante la prueba), registros de intentos con filtro y exportación CSV/Excel, y pestaña de **Códigos QR**: URL base configurable, PNG por código, ZIP descargable y hoja de etiquetas A4 imprimible. Escaneando el QR se abre la ficha del defecto directamente.
 - **Acceso** — Login/registro con consentimiento RGPD/LOPDGDD, sesiones firmadas (cookie HttpOnly), roles administrador/evaluado.
+- **Cargador de material** — Carga en lote, en local, de los modelos GLB por defecto (p. ej. ~12 MB cada uno), los textos de los 7 apartados, los recursos gráficos/audio/vídeo y el banco de preguntas: carpetas `material/` + tres hojas CSV editables en Excel, con revisión previa antes de aplicar (`herramientas/cargador-material/`, sin dependencias externas).
 
 ## Tecnologías
 

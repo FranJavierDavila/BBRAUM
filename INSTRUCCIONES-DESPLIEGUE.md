@@ -203,6 +203,33 @@ etiquetas QR. Dos formas de gestionarlo:
 - Todo lo subido queda en `public/uploads/defects/<código>/` y se preserva en
   cada despliegue.
 
+### 11.1 Carga en lote de material (modelos GLB, textos, recursos y preguntas)
+
+Para llevar el material real de los 40 defectos (p. ej. modelos GLB de ~12 MB,
+los textos de los 7 apartados, fotos/vídeos/audios y el banco de preguntas) de
+una sola vez y en local, usa el **cargador de material**
+(`herramientas/cargador-material/`, sin dependencias externas — funciona igual
+en el paquete y en el repositorio):
+
+```bash
+# desde la carpeta aplicacion/ del paquete (o la raíz del proyecto)
+node herramientas/cargador-material/cargar-material.mjs --plantillas   # 1) CSV de partida
+node herramientas/cargador-material/cargar-material.mjs                # 2) revisión (no escribe)
+node herramientas/cargador-material/cargar-material.mjs --ejecutar     # 3) aplicar
+```
+
+- Los **GLB** se dejan en `material/modelos/` con el nombre del código
+  (`D001.glb` … `D040.glb`); se copian a `public/models/` y se enlazan al defecto.
+- Los **textos** se editan en `material/textos.csv` (Excel: separador «;», UTF-8;
+  celda vacía = «no tocar», guión `-` = dejar vacío).
+- Los **recursos** van a `material/recursos/` y se declaran en `media.csv`
+  (tipo imagen|video|audio|enlace, apartado de la ficha y orden).
+- Las **preguntas** se editan en `preguntas.csv` (variante, enunciado, opciones
+  A/B/C, correcta y explicación); se integran en el banco de cada defecto.
+- La revisión valida códigos, tipos, apartados y ficheros antes de escribir: si
+  hay errores, no se aplica nada. Haz antes copia de `datos/bbraun.db` (§7).
+- Detalle completo en `herramientas/cargador-material/LEEME.md`.
+
 ## 12. Fuente corporativa
 
 La pila tipográfica declara «BBraun Type Digital» con `@font-face` que resuelve
