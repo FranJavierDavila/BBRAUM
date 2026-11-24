@@ -209,6 +209,15 @@ etiquetas QR. Dos formas de gestionarlo:
   servían los presentes al arrancar y lo subido en caliente daba 404. Además,
   el botón «Guardar contenido» queda bloqueado hasta que el formulario carga
   los textos del defecto, para que un guardado prematuro no borre apartados.
+- Desde v1.4.6 la única nomenclatura visible es el **nombre del defecto** (el
+  que se escribe en «Nombre del defecto»): los códigos internos (D001…) dejan
+  de mostrarse en el catálogo, la ficha, la prueba, el resultado, las etiquetas
+  QR y el panel. Se retiran los campos «Nombre de visualización», el
+  «Complemento de la descripción» y la «Nota al pie · Referencias normativas».
+  El material multimedia ya no pide título (se usa el nombre del fichero) y se
+  previsualiza directamente en el apartado elegido, una sola vez y sin
+  etiquetas; la galería «Material de apoyo» del pie queda para el material sin
+  apartado asignado.
 - Todo lo subido queda en `public/uploads/defects/<código>/` y se preserva en
   cada despliegue.
 
