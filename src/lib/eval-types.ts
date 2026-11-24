@@ -36,18 +36,15 @@ export type DefectMediaItem = {
   url: string;
   title: string;
   caption: string | null;
-  /** Apartado de la ficha donde se muestra (header/description/risks/causes/action/detection/prevention/regulation); null = galería del pie */
+  /** Apartado de la ficha donde se muestra (header/description/risks/causes/action/detection/prevention); null = galería del pie */
   section: string | null;
 };
 
 export type DefectData = {
   code: string;
   name: string;
-  /** Nombre de visualización opcional; si viene, se muestra en lugar de `name` */
-  displayName?: string | null;
   category: string;
   description: string;
-  detail: string;
   severity: string;
   modelPath: string;
   causes?: string | null;
@@ -55,7 +52,6 @@ export type DefectData = {
   detection?: string | null;
   action?: string | null;
   prevention?: string | null;
-  regulation?: string | null;
   media?: DefectMediaItem[];
 };
 
@@ -85,7 +81,6 @@ export type PruebaQuestion = {
   answeredAt: string | null;
   defectCode: string;
   defectName: string;
-  defectDisplayName?: string | null;
   defectSeverity: string;
   modelPath: string;
   text: string;
@@ -98,7 +93,6 @@ export type FinalResultDetail = {
   orderIndex: number;
   defectCode: string;
   defectName: string;
-  defectDisplayName?: string | null;
   isCorrect: boolean;
   selected: string | null;
   correctOption: string;

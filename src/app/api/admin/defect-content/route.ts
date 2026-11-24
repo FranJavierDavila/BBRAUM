@@ -6,13 +6,11 @@ import path from "path";
 
 const CONTENT_FIELDS = [
   "description",
-  "detail",
   "causes",
   "risks",
   "detection",
   "action",
   "prevention",
-  "regulation",
 ] as const;
 
 /** GET /api/admin/defect-content — lista resumida de todos los defectos. */
@@ -27,18 +25,15 @@ export async function GET() {
     select: {
       code: true,
       name: true,
-      displayName: true,
       category: true,
       severity: true,
       modelPath: true,
       description: true,
-      detail: true,
       causes: true,
       risks: true,
       detection: true,
       action: true,
       prevention: true,
-      regulation: true,
       _count: { select: { media: true } },
     },
   });
@@ -47,19 +42,16 @@ export async function GET() {
     defects: defects.map((d) => ({
       code: d.code,
       name: d.name,
-      displayName: d.displayName,
       category: d.category,
       severity: d.severity,
       modelPath: d.modelPath,
       description: d.description,
-      detail: d.detail,
       causes: d.causes,
       risks: d.risks,
       detection: d.detection,
       action: d.action,
       prevention: d.prevention,
-      regulation: d.regulation,
-      hasContent: Boolean(d.causes || d.risks || d.detection || d.action || d.prevention || d.regulation),
+      hasContent: Boolean(d.causes || d.risks || d.detection || d.action || d.prevention),
       mediaCount: d._count.media,
     })),
   });
@@ -89,17 +81,15 @@ export async function PUT(req: NextRequest) {
     const value = body[field];
     if (value === undefined) continue; // no enviado → no se toca
     if (value === null || value === "") {
-      data[field] = field === "description" || field === "detail" ? defect[field] : null;
+      data[field] = field === "description" ? defect[field] : null;
       continue;
     }
     if (typeof value !== "string") {
       return NextResponse.json({ error: `El campo ${field} debe ser texto` }, { status: 400 });
     }
     const trimmed = value.trim();
-    if (field === "description" || field === "detail") {
-      if (trimmed.length < 5) {
-        return NextResponse.json({ error: `El campo ${field} no puede quedar vacío` }, { status: 400 });
-      }
+    if (field === "description" && trimmed.length < 5) {
+      return NextResponse.json({ error: `El campo ${field} no puede quedar vacío` }, { status: 400 });
     }
     if (trimmed.length > 20000) {
       return NextResponse.json({ error: `El campo ${field} excede la longitud máxima (20000)` }, { status: 400 });
@@ -107,8 +97,9 @@ export async function PUT(req: NextRequest) {
     data[field] = trimmed;
   }
 
-  // Nombre del defecto: editable por si el cliente usa una nomenclatura distinta.
-  // El código nunca cambia (lo referencian QR, URLs y registros).
+  // Nombre del defecto: la nomenclatura visible del cliente en todas las
+  // superficies (v1.4.6). El código nunca cambia (lo referencian QR, URLs y
+  // registros) y deja de mostrarse.
   if (body.name !== undefined) {
     if (typeof body.name !== "string") {
       return NextResponse.json({ error: "El nombre del defecto debe ser texto" }, { status: 400 });
@@ -121,23 +112,6 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "El nombre del defecto excede la longitud máxima (120)" }, { status: 400 });
     }
     data.name = name;
-  }
-
-  // Nombre de visualización: opcional, sustituye a `name` en todas las superficies
-  // visibles (catálogo, ficha, visor 3D, prueba, resultado y etiquetas QR).
-  // Vacío o en blanco lo desactiva y vuelve a mostrarse el nombre.
-  if (body.displayName !== undefined) {
-    if (body.displayName === null) {
-      data.displayName = null;
-    } else if (typeof body.displayName !== "string") {
-      return NextResponse.json({ error: "El nombre de visualización debe ser texto" }, { status: 400 });
-    } else {
-      const display = body.displayName.trim();
-      if (display.length > 120) {
-        return NextResponse.json({ error: "El nombre de visualización excede la longitud máxima (120)" }, { status: 400 });
-      }
-      data.displayName = display || null;
-    }
   }
 
   // Modelo 3D: debe apuntar a un GLB existente en /public/models
@@ -160,14 +134,12 @@ export async function PUT(req: NextRequest) {
     defect: {
       code: updated.code,
       name: updated.name,
-      displayName: updated.displayName,
       modelPath: updated.modelPath,
       causes: updated.causes,
       risks: updated.risks,
       detection: updated.detection,
       action: updated.action,
       prevention: updated.prevention,
-      regulation: updated.regulation,
     },
   });
 }

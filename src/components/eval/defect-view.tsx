@@ -11,23 +11,25 @@ import { Viewer3DCard, SEV_STYLE, SEV_TEXT } from "./viewer-3d-card";
 import { ResourceViewer } from "./resource-viewer";
 import {
   ArrowLeft, CheckCircle2, XCircle, Loader2, GraduationCap, RefreshCw,
-  Wrench, HeartPulse, Eye, ClipboardList, ShieldCheck, Scale, Images, Play, Sparkles,
-  CircleAlert, FileText, Image as ImageIcon, Film, Volume2, Link2,
+  Wrench, HeartPulse, Eye, ClipboardList, ShieldCheck, Images, Play, Sparkles,
+  CircleAlert, FileText, Volume2,
 } from "lucide-react";
 import {
   apiFetch, type DefectData, type DefectMediaItem, type QuizQuestion, type AnswerFeedback,
 } from "@/lib/eval-types";
 import { defectLabel } from "@/lib/defect-label";
-import { mediaSectionShort } from "@/lib/media-sections";
+import { MEDIA_SECTION_KEYS, mediaSectionShort } from "@/lib/media-sections";
 
 /**
  * Estructura fija de la ficha: 7 apartados numerados, siempre visibles y en el
  * mismo orden (la numeración no depende de qué apartados estén completados).
  * El apartado 1 («Defecto») es la identificación y el 2 («Descripción breve del
- * defecto») se compone con description + detail. Los apartados 3-7 muestran un
- * aviso discreto mientras el administrador no haya completado su texto, pero
- * mantienen su posición, su número y los botones de sus recursos multimedia.
- * Las referencias normativas se muestran como nota al pie, fuera de los 7.
+ * defecto») muestra la description. Los apartados 3-7 muestran un aviso
+ * discreto mientras el administrador no haya completado su texto, pero
+ * mantienen su posición y su número. Los recursos multimedia enlazados a un
+ * apartado se previsualizan a continuación de su texto, sin etiquetas y una
+ * sola vez (v1.4.6); el material sin apartado forma la galería «Material de
+ * apoyo» del pie.
  */
 const SECTIONS: Array<{
   key: "risks" | "causes" | "action" | "detection" | "prevention";
@@ -58,100 +60,59 @@ function SectionHeading({ n, label, icon: Icon }: {
   );
 }
 
-/** Fila de cabecera: título del apartado + botones de sus recursos multimedia */
-function SectionHeadingRow({
-  n, label, icon, media, onOpen,
-}: {
-  n: number;
-  label: string;
-  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
-  media: DefectMediaItem[];
-  onOpen: (type: DefectMediaItem["type"], id?: string) => void;
-}) {
+/** Previsualización directa de un recurso: se muestra el contenido una sola
+ *  vez, sin etiquetas; solo el pie de foto opcional se añade debajo. */
+function MediaPreview({ item }: { item: DefectMediaItem }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <SectionHeading n={n} label={label} icon={icon} />
-      <SectionMediaButtons items={media} onOpen={onOpen} />
-    </div>
+    <figure className="space-y-1.5">
+      {item.type === "IMAGE" && (
+        <img
+          src={item.url}
+          alt={item.caption || "Material del apartado"}
+          className="h-44 w-full rounded-lg border object-cover"
+          loading="lazy"
+        />
+      )}
+      {item.type === "VIDEO" && (
+        <video
+          controls
+          preload="metadata"
+          src={item.url}
+          className="aspect-video w-full rounded-lg border bg-black"
+        />
+      )}
+      {item.type === "AUDIO" && (
+        <div className="rounded-lg border border-bb-green-line bg-bb-green-tint/40 p-2.5">
+          <audio src={item.url} controls preload="metadata" className="w-full" />
+        </div>
+      )}
+      {item.type === "EMBED" && (
+        <iframe
+          src={item.url}
+          title={item.caption || "Contenido incrustado"}
+          loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
+          sandbox="allow-scripts allow-same-origin allow-presentation"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          className="aspect-video w-full rounded-lg border"
+        />
+      )}
+      {item.caption && (
+        <figcaption className="text-xs leading-relaxed text-slate-500">{item.caption}</figcaption>
+      )}
+    </figure>
   );
 }
 
-/** Botones compactos (un icono por tipo) para abrir los recursos enlazados a un apartado */
-function SectionMediaButtons({
-  items,
-  onOpen,
-}: {
-  items: DefectMediaItem[];
-  onOpen: (type: DefectMediaItem["type"], id?: string) => void;
-}) {
-  if (items.length === 0) return null;
-  const count = (t: DefectMediaItem["type"]) => items.filter((m) => m.type === t).length;
-  const btn =
-    "inline-flex h-6 items-center gap-1 rounded-full border border-bb-green-line bg-white px-2 text-[11px] font-semibold text-bb-green-dark transition-colors hover:bg-bb-green-tint";
-
-  const groups: Array<{ type: DefectMediaItem["type"]; label: string; icon: React.ReactNode }> = [];
-  if (count("IMAGE") > 0) {
-    const c = count("IMAGE");
-    groups.push({ type: "IMAGE", label: c > 1 ? `Imágenes (${c})` : "Imagen", icon: <ImageIcon className="h-3 w-3" aria-hidden="true" /> });
-  }
-  if (count("VIDEO") > 0) {
-    groups.push({ type: "VIDEO", label: "Vídeo", icon: <Film className="h-3 w-3" aria-hidden="true" /> });
-  }
-  if (count("AUDIO") > 0) {
-    const c = count("AUDIO");
-    groups.push({ type: "AUDIO", label: c > 1 ? `Audios (${c})` : "Audio", icon: <Volume2 className="h-3 w-3" aria-hidden="true" /> });
-  }
-  if (count("EMBED") > 0) {
-    groups.push({ type: "EMBED", label: "Enlace", icon: <Link2 className="h-3 w-3" aria-hidden="true" /> });
-  }
-
-  return (
-    <span className="flex flex-wrap items-center gap-1.5">
-      {groups.map((g) => (
-        <button
-          key={g.type}
-          type="button"
-          className={btn}
-          onClick={() => onOpen(g.type)}
-          title={`Ver ${g.label.toLowerCase()} de este apartado`}
-        >
-          {g.icon} {g.label}
-        </button>
-      ))}
-    </span>
-  );
-}
-
-/** Miniaturas clicable (una por recurso) mostradas bajo el texto del apartado */
-function MediaChips({
-  items,
-  onOpen,
-}: {
-  items: DefectMediaItem[];
-  onOpen: (type: DefectMediaItem["type"], id?: string) => void;
-}) {
+/** Recursos enlazados a un apartado: se previsualizan a continuación del texto,
+ *  cada uno una sola vez y sin etiqueta (v1.4.6). */
+function SectionMediaInline({ items }: { items: DefectMediaItem[] }) {
   if (items.length === 0) return null;
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
+    <div className="mt-2.5 grid gap-3 sm:grid-cols-2">
       {items.map((m) => (
-        <button
-          key={m.id}
-          type="button"
-          onClick={() => onOpen(m.type, m.id)}
-          title={m.caption || m.title}
-          className="inline-flex max-w-full items-center gap-1.5 rounded-full border bg-white py-0.5 pl-0.5 pr-2.5 text-xs text-slate-600 transition-colors hover:border-bb-green hover:bg-bb-green-tint/50"
-        >
-          {m.type === "IMAGE" ? (
-            <img src={m.url} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" loading="lazy" />
-          ) : (
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-bb-green-tint text-bb-green-dark">
-              {m.type === "VIDEO" && <Film className="h-3 w-3" aria-hidden="true" />}
-              {m.type === "AUDIO" && <Volume2 className="h-3 w-3" aria-hidden="true" />}
-              {m.type === "EMBED" && <Link2 className="h-3 w-3" aria-hidden="true" />}
-            </span>
-          )}
-          <span className="truncate">{m.title}</span>
-        </button>
+        <MediaPreview key={m.id} item={m} />
       ))}
     </div>
   );
@@ -162,7 +123,7 @@ function SectionPending() {
   return (
     <p className="mt-1.5 text-sm italic leading-relaxed text-slate-400">
       Apartado pendiente de completar por el administrador. Los recursos multimedia enlazados, si los
-      hay, se muestran en los botones de la cabecera.
+      hay, se previsualizan a continuación.
     </p>
   );
 }
@@ -229,21 +190,24 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
   const defectTitle = defectLabel(defect);
   const media = defect.media ?? [];
 
-  /** Abre el visor con el grupo de recursos del apartado indicado.
-   *  Las imágenes de un mismo apartado forman carrusel; el resto se abre individual. */
-  function openViewer(section: string | null, type: DefectMediaItem["type"], id?: string) {
-    const pool = media.filter((m) => m.section === section);
+  const bySection = (key: string | null) => media.filter((m) => m.section === key);
+  // Galería del pie: material sin apartado + el de apartados retirados en v1.4.6
+  const galleryMedia = [
+    ...bySection(null),
+    ...media.filter((m) => m.section && !MEDIA_SECTION_KEYS.includes(m.section)),
+  ];
+
+  /** Abre el visor con el grupo de recursos de la galería.
+   *  Las imágenes forman carrusel; el resto se abre individual. */
+  function openViewer(type: DefectMediaItem["type"], id?: string) {
     const group =
       type === "IMAGE"
-        ? pool.filter((m) => m.type === "IMAGE")
-        : pool.filter((m) => m.type === type && (!id || m.id === id));
+        ? galleryMedia.filter((m) => m.type === "IMAGE")
+        : galleryMedia.filter((m) => m.type === type && (!id || m.id === id));
     if (group.length === 0) return;
     const idx = Math.max(0, group.findIndex((m) => m.id === id));
-    setViewer({ items: group, index: idx, section });
+    setViewer({ items: group, index: idx, section: null });
   }
-
-  const bySection = (key: string | null) => media.filter((m) => m.section === key);
-  const galleryMedia = bySection(null);
 
   return (
     <div className="space-y-4">
@@ -268,29 +232,26 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
             <CardTitle className="text-base">Ficha del defecto</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Apartado 1 · Defecto (identificación) */}
+            {/* Apartado 1 · Defecto (identificación, solo con la nomenclatura del cliente) */}
             <section className="rounded-lg border bg-slate-50 p-3">
-              <SectionHeadingRow n={1} label="Defecto" icon={CircleAlert} media={bySection("header")} onOpen={(t, id) => openViewer("header", t, id)} />
-              <p className="mt-2 text-sm font-semibold text-slate-800">
-                <span className="font-mono">{defect.code}</span> — {defectTitle}
-              </p>
+              <SectionHeading n={1} label="Defecto" icon={CircleAlert} />
+              <p className="mt-2 text-sm font-semibold text-slate-800">{defectTitle}</p>
               <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                 Familia: {defect.category}
                 <Badge variant="outline" className={`text-[11px] ${SEV_STYLE[defect.severity] || SEV_STYLE.MENOR}`}>
                   Severidad: {SEV_TEXT[defect.severity] || defect.severity}
                 </Badge>
               </p>
-              <MediaChips items={bySection("header")} onOpen={(t, id) => openViewer("header", t, id)} />
+              <SectionMediaInline items={bySection("header")} />
             </section>
 
             {/* Apartado 2 · Descripción breve del defecto */}
             <section className="rounded-lg border p-3">
-              <SectionHeadingRow n={2} label="Descripción breve del defecto" icon={FileText} media={bySection("description")} onOpen={(t, id) => openViewer("description", t, id)} />
+              <SectionHeading n={2} label="Descripción breve del defecto" icon={FileText} />
               <div className="mt-1.5 space-y-2 text-sm leading-relaxed text-slate-600">
                 <p>{defect.description}</p>
-                {defect.detail && <p>{defect.detail}</p>}
               </div>
-              <MediaChips items={bySection("description")} onOpen={(t, id) => openViewer("description", t, id)} />
+              <SectionMediaInline items={bySection("description")} />
             </section>
 
             {/* Apartados 3-7 · estructura fija, se muestren o no completados */}
@@ -298,13 +259,7 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
               const sectionMedia = bySection(s.key);
               return (
                 <section key={s.key} className="rounded-lg border p-3">
-                  <SectionHeadingRow
-                    n={i + 3}
-                    label={s.label}
-                    icon={s.icon}
-                    media={sectionMedia}
-                    onOpen={(t, id) => openViewer(s.key, t, id)}
-                  />
+                  <SectionHeading n={i + 3} label={s.label} icon={s.icon} />
                   {defect[s.key] ? (
                     <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-slate-600">
                       {defect[s.key]}
@@ -312,23 +267,10 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
                   ) : (
                     <SectionPending />
                   )}
-                  <MediaChips items={sectionMedia} onOpen={(t, id) => openViewer(s.key, t, id)} />
+                  <SectionMediaInline items={sectionMedia} />
                 </section>
               );
             })}
-
-            {/* Nota al pie: referencias normativas (fuera de la estructura de 7 apartados) */}
-            {defect.regulation && (
-              <div className="space-y-1 px-1">
-                <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-400">
-                  <Scale className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
-                  <span>
-                    Referencias normativas: {defect.regulation}
-                  </span>
-                </p>
-                <MediaChips items={bySection("regulation")} onOpen={(t, id) => openViewer("regulation", t, id)} />
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -348,7 +290,7 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2">
               {galleryMedia.map((m) => (
-                <MediaCard key={m.id} item={m} onOpen={() => openViewer(null, m.type, m.id)} />
+                <MediaCard key={m.id} item={m} onOpen={() => openViewer(m.type, m.id)} />
               ))}
             </div>
           </CardContent>
@@ -600,16 +542,12 @@ function MediaCard({
       )}
       {item.type === "AUDIO" && (
         <div className="space-y-2 rounded-lg border border-bb-green-line bg-bb-green-tint/40 p-3">
-          <p className="flex items-center gap-2 text-sm font-semibold text-bb-green-dark">
-            <Volume2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {item.title}
-          </p>
           <audio
             src={item.url}
             controls
             preload="metadata"
             className="w-full"
-            aria-label={`Audio: ${item.title}`}
+            aria-label="Audio de apoyo"
           />
         </div>
       )}
@@ -632,7 +570,6 @@ function MediaCard({
         </div>
       )}
       <figcaption className="space-y-0.5">
-        <p className="text-sm font-semibold leading-snug text-slate-700">{item.title}</p>
         {item.caption && (
           <p className="text-xs leading-relaxed text-slate-500">{item.caption}</p>
         )}

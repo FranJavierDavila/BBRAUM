@@ -73,13 +73,15 @@ export async function POST(req: NextRequest) {
   if (section && !MEDIA_SECTION_KEYS.includes(section)) {
     return NextResponse.json({ error: "Apartado de la ficha no válido" }, { status: 400 });
   }
-  if (!title) return NextResponse.json({ error: "El material necesita un título" }, { status: 400 });
+  // v1.4.6: el título es opcional; si no llega, se usa el nombre del fichero
+  // original (o un texto genérico para enlaces incrustados).
   if (title.length > 200) return NextResponse.json({ error: "El título es demasiado largo (máx. 200)" }, { status: 400 });
 
   const defect = await db.defect.findUnique({ where: { code }, select: { id: true } });
   if (!defect) return NextResponse.json({ error: "Código de defecto no encontrado" }, { status: 404 });
 
   let url = "";
+  let originalName = "";
 
   if (type === "EMBED") {
     const raw = String(form.get("url") || "").trim();
@@ -103,6 +105,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: up.error }, { status: 400 });
       }
       fileName = up.filename;
+      originalName = fileName;
       fileSize = up.size;
       buf = up.buf;
     } else {
@@ -111,6 +114,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Falta el archivo a subir" }, { status: 400 });
       }
       fileName = file.name;
+      originalName = fileName;
       fileSize = file.size;
       buf = Buffer.from(await file.arrayBuffer());
     }
@@ -144,6 +148,8 @@ export async function POST(req: NextRequest) {
     url = `/uploads/defects/${code}/${name}`;
   }
 
+  const finalTitle = title || originalName || (type === "EMBED" ? "Contenido incrustado" : "Material");
+
   const last = await db.defectMedia.findFirst({
     where: { defectId: defect.id },
     orderBy: { orderIndex: "desc" },
@@ -155,7 +161,7 @@ export async function POST(req: NextRequest) {
       defectId: defect.id,
       type,
       url,
-      title,
+      title: finalTitle,
       caption,
       section,
       orderIndex: (last?.orderIndex ?? 0) + 1,

@@ -82,7 +82,7 @@ export function PruebaView({
   }, []);
 
   const q = questions[index];
-  const qLabel = q ? defectLabel({ code: q.defectCode, name: q.defectName, displayName: q.defectDisplayName }) : "";
+  const qLabel = q ? defectLabel({ code: q.defectCode, name: q.defectName }) : "";
   const answeredCount = questions.filter((x) => x.selected !== null).length;
 
   async function answer() {

@@ -59,12 +59,10 @@ type ModelInfo = { path: string; name: string };
 type AdminDefectSummary = {
   code: string;
   name: string;
-  displayName: string | null;
   category: string;
   severity: string;
   modelPath: string;
   description: string;
-  detail: string;
   hasContent: boolean;
   mediaCount: number;
   causes: string | null;
@@ -72,7 +70,6 @@ type AdminDefectSummary = {
   detection: string | null;
   action: string | null;
   prevention: string | null;
-  regulation: string | null;
 };
 
 type AdminMedia = {
@@ -456,7 +453,6 @@ function QrTab() {
               <TableHeader className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
                 <TableRow>
                   <TableHead className="w-10"></TableHead>
-                  <TableHead className="w-20">Código</TableHead>
                   <TableHead>Defecto</TableHead>
                   <TableHead>Categoría</TableHead>
                   <TableHead className="w-24 text-center">QR</TableHead>
@@ -471,10 +467,9 @@ function QrTab() {
                         checked={selected.has(d.code)}
                         onChange={() => toggle(d.code)}
                         className="h-4 w-4 cursor-pointer accent-bb-green"
-                        aria-label={`Seleccionar ${d.code}`}
+                        aria-label={`Seleccionar ${defectLabel(d)}`}
                       />
                     </TableCell>
-                    <TableCell className="font-mono text-xs font-bold text-slate-700">{d.code}</TableCell>
                     <TableCell className="max-w-72 truncate text-sm text-slate-700" title={defectLabel(d)}>{defectLabel(d)}</TableCell>
                     <TableCell className="text-xs text-slate-500">{d.category}</TableCell>
                     <TableCell className="text-center">
@@ -482,7 +477,7 @@ function QrTab() {
                         href={`/api/admin/qr/${d.code}?size=512`}
                         download={`qrcode-${d.code}.png`}
                         className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold text-bb-green-dark transition-colors hover:bg-bb-green-tint"
-                        title={`Descargar QR de ${d.code} (PNG 512 px)`}
+                        title={`Descargar QR de ${defectLabel(d)} (PNG 512 px)`}
                       >
                         <QrCode className="h-3.5 w-3.5" aria-hidden="true" /> PNG
                       </a>
@@ -491,7 +486,7 @@ function QrTab() {
                 ))}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-sm text-slate-400">
+                    <TableCell colSpan={4} className="py-8 text-center text-sm text-slate-400">
                       Ningún defecto coincide con la búsqueda.
                     </TableCell>
                   </TableRow>
@@ -772,23 +767,21 @@ function CredentialsTab({ onUsernameChanged }: { onUsernameChanged: (u: string) 
 /* ---------------- Contenidos teóricos ---------------- */
 
 type ContentFieldKey =
-  | "description" | "detail" | "causes" | "risks"
-  | "detection" | "action" | "prevention" | "regulation";
+  | "description" | "causes" | "risks"
+  | "detection" | "action" | "prevention";
 
 const CONTENT_FIELDS: Array<{ key: ContentFieldKey; label: string; hint: string; rows: number }> = [
-  { key: "description", label: "Apartado 2 · Descripción breve del defecto", hint: "Qué es el defecto en una o dos frases (el apartado 1 «Defecto» se compone solo con el código, el nombre y la familia)", rows: 3 },
-  { key: "detail", label: "Complemento de la descripción (hallazgo típico)", hint: "Cómo se manifiesta en la unidad inspeccionada; se muestra a continuación de la descripción breve, dentro del apartado 2", rows: 3 },
+  { key: "description", label: "Apartado 2 · Descripción breve del defecto", hint: "Qué es el defecto en una o dos frases (el apartado 1 «Defecto» se compone con el nombre y la familia)", rows: 3 },
   { key: "risks", label: "Apartado 3 · Riesgos para el paciente", hint: "Consecuencias clínicas potenciales y criticidad asociada", rows: 4 },
   { key: "causes", label: "Apartado 4 · Causas habituales", hint: "Orígenes frecuentes: proceso, material, manipulación, logística…", rows: 4 },
   { key: "action", label: "Apartado 5 · Actuación correcta", hint: "Qué debe hacer el inspector: segregación, registro, avisos", rows: 4 },
   { key: "detection", label: "Apartado 6 · Guía para su detección durante la inspección", hint: "Cómo identificarlo durante la inspección visual (técnica y patrones)", rows: 4 },
   { key: "prevention", label: "Apartado 7 · Prevención y buenas prácticas", hint: "Medidas de proceso que evitan la reaparición", rows: 3 },
-  { key: "regulation", label: "Nota al pie · Referencias normativas", hint: "Farmacopeas, normas ISO y GMP aplicables; se muestra como nota al pie de la ficha, fuera de los 7 apartados", rows: 2 },
 ];
 
 const EMPTY_FORM: Record<ContentFieldKey, string> = {
-  description: "", detail: "", causes: "", risks: "",
-  detection: "", action: "", prevention: "", regulation: "",
+  description: "", causes: "", risks: "",
+  detection: "", action: "", prevention: "",
 };
 
 function ContentsTab() {
@@ -798,7 +791,6 @@ function ContentsTab() {
   const [selectedCode, setSelectedCode] = useState<string>("");
   const [form, setForm] = useState<Record<ContentFieldKey, string>>(EMPTY_FORM);
   const [name, setName] = useState<string>("");
-  const [displayName, setDisplayName] = useState<string>("");
   const [modelPath, setModelPath] = useState<string>("");
   const [media, setMedia] = useState<AdminMedia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -811,7 +803,6 @@ function ContentsTab() {
 
   // Alta de material
   const [newType, setNewType] = useState<"IMAGE" | "VIDEO" | "EMBED" | "AUDIO">("IMAGE");
-  const [newTitle, setNewTitle] = useState("");
   const [newCaption, setNewCaption] = useState("");
   const [newUrl, setNewUrl] = useState("");
   const [newSection, setNewSection] = useState<string>(SECTION_GALLERY);
@@ -854,17 +845,14 @@ function ContentsTab() {
     if (d) {
       setForm({
         description: d.description ?? "",
-        detail: d.detail ?? "",
         causes: d.causes ?? "",
         risks: d.risks ?? "",
         detection: d.detection ?? "",
         action: d.action ?? "",
         prevention: d.prevention ?? "",
-        regulation: d.regulation ?? "",
       });
       setModelPath(d.modelPath);
       setName(d.name ?? "");
-      setDisplayName(d.displayName ?? "");
       setContentReady(true);
     }
     apiFetch<{ media: AdminMedia[] }>(`/api/admin/media?code=${encodeURIComponent(selectedCode)}`)
@@ -878,7 +866,7 @@ function ContentsTab() {
     try {
       await apiFetch("/api/admin/defect-content", {
         method: "PUT",
-        body: JSON.stringify({ code: selectedCode, name, displayName, ...form, modelPath }),
+        body: JSON.stringify({ code: selectedCode, name, ...form, modelPath }),
       });
       await refreshDefects();
       toast({
@@ -936,10 +924,10 @@ function ContentsTab() {
   }
 
   async function addMedia() {
-    if (!selectedCode || !newTitle.trim()) {
+    if (!selectedCode) {
       toast({
         title: "Falta información",
-        description: "Indica al menos el título del material",
+        description: "Selecciona primero un defecto",
         variant: "destructive",
       });
       return;
@@ -968,7 +956,6 @@ function ContentsTab() {
       const fd = new FormData();
       fd.append("code", selectedCode);
       fd.append("type", newType);
-      fd.append("title", newTitle.trim());
       if (newCaption.trim()) fd.append("caption", newCaption.trim());
       fd.append("section", newSection === SECTION_GALLERY ? "" : newSection);
       if (newType === "EMBED") fd.append("url", newUrl.trim());
@@ -987,7 +974,6 @@ function ContentsTab() {
       );
       setMedia(data.media);
       await refreshDefects();
-      setNewTitle("");
       setNewCaption("");
       setNewUrl("");
       setNewSection(SECTION_GALLERY);
@@ -1055,21 +1041,20 @@ function ContentsTab() {
       {/* Selector de defecto */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Código de defecto</CardTitle>
+          <CardTitle className="text-base">Defecto</CardTitle>
           <CardDescription>
-            Selecciona el código cuya ficha teórica deseas editar. Los cambios se publican al instante para los evaluadores.
+            Selecciona el defecto cuya ficha teórica deseas editar. Los cambios se publican al instante para los evaluadores.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Select value={selectedCode} onValueChange={setSelectedCode}>
-            <SelectTrigger className="w-full sm:max-w-md" aria-label="Seleccionar código de defecto">
-              <SelectValue placeholder="Selecciona un código…" />
+            <SelectTrigger className="w-full sm:max-w-md" aria-label="Seleccionar defecto">
+              <SelectValue placeholder="Selecciona un defecto…" />
             </SelectTrigger>
             <SelectContent className="max-h-72">
               {defects.map((d) => (
                 <SelectItem key={d.code} value={d.code}>
-                  <span className="font-mono font-semibold">{d.code}</span>
-                  <span className="ml-2 text-slate-600">{defectLabel(d)}</span>
+                  <span className="text-slate-700">{defectLabel(d)}</span>
                   {d.mediaCount > 0 && (
                     <span className="ml-2 rounded bg-bb-green-tint px-1 text-[10px] text-bb-green-dark">
                       {d.mediaCount} media
@@ -1088,15 +1073,15 @@ function ContentsTab() {
           <Card className="shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">
-                Plantilla de contenido — <span className="font-mono">{selected.code}</span> {defectLabel(selected)}
+                Plantilla de contenido — {defectLabel(selected)}
               </CardTitle>
               <CardDescription>
-                Estructura fija de 7 apartados: 1 · Defecto (código, nombre y familia), 2 · Descripción
+                Estructura fija de 7 apartados: 1 · Defecto (nombre y familia), 2 · Descripción
                 breve del defecto, 3 · Riesgos para el paciente, 4 · Causas habituales, 5 · Actuación
                 correcta, 6 · Guía para su detección durante la inspección y 7 · Prevención y buenas
                 prácticas. Los 7 apartados se muestran siempre en ese orden: si dejas alguno en blanco,
-                la ficha indica que está pendiente de completar y conserva su numeración (salvo
-                descripción y detalle, obligatorios).
+                la ficha indica que está pendiente de completar y conserva su numeración (salvo la
+                descripción, obligatoria).
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1111,26 +1096,10 @@ function ContentsTab() {
                   maxLength={120}
                 />
                 <p className="text-xs text-slate-400">
-                  Cámbialo aquí si el cliente usa otra nomenclatura: se actualiza a la vez en la tabla de Teoría,
-                  en el apartado 1 de la ficha y en el visor 3D. El código ({selected.code}) nunca cambia, para no
-                  romper QR ni registros.
-                </p>
-              </div>
-
-              {/* Nombre de visualización (etiqueta opcional con respaldo al nombre) */}
-              <div className="space-y-1.5 rounded-lg border bg-slate-50 p-3">
-                <Label htmlFor="cnt-display-name">Nombre de visualización (opcional)</Label>
-                <Input
-                  id="cnt-display-name"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder={`Vacío = se muestra «${name || selected.code}»`}
-                  maxLength={120}
-                />
-                <p className="text-xs text-slate-400">
-                  Etiqueta que verán los evaluadores en el catálogo, la ficha, el visor 3D, la prueba, el
-                  resultado y las etiquetas QR. Si se deja vacío se muestra el nombre del defecto; si ambos
-                  están vacíos, el código. Útil para variantes de nomenclatura sin perder el nombre oficial.
+                  El nombre que escribas aquí es el que verán los evaluadores: en la tabla de Teoría,
+                  en el apartado 1 de la ficha, en el visor 3D, en la prueba, en el resultado y en las
+                  etiquetas QR. Los códigos internos nunca cambian, para no romper QR ni registros, y
+                  dejan de mostrarse (v1.4.6).
                 </p>
               </div>
 
@@ -1218,7 +1187,7 @@ function ContentsTab() {
                 Material de apoyo ({media.length})
               </CardTitle>
               <CardDescription>
-                Imágenes, vídeos, audios o contenidos incrustados que acompañan a la ficha de {selected.code}. Cada
+                Imágenes, vídeos, audios o contenidos incrustados que acompañan a la ficha de {defectLabel(selected)}. Cada
                 recurso se muestra en el apartado que elijas (o en la galería del pie); en la ficha aparecerá un botón
                 junto al título de ese apartado.
               </CardDescription>
@@ -1308,16 +1277,6 @@ function ContentsTab() {
                         <SelectItem value="EMBED"><span className="inline-flex items-center gap-1.5"><Link2 className="h-3.5 w-3.5" aria-hidden="true" /> Enlace incrustado</span></SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="med-title">Título</Label>
-                    <Input
-                      id="med-title"
-                      value={newTitle}
-                      onChange={(e) => setNewTitle(e.target.value)}
-                      placeholder="Ej.: Inspección a contra luz"
-                      maxLength={200}
-                    />
                   </div>
                 </div>
                 {newType === "EMBED" ? (

@@ -8,7 +8,7 @@ import { defectLabel } from "@/lib/defect-label";
 
 const FALLBACK_CODES = Array.from({ length: 40 }, (_, i) => `D${String(i + 1).padStart(3, "0")}`);
 
-type CatalogDefect = { code: string; name: string; displayName?: string | null; severity: string };
+type CatalogDefect = { code: string; name: string; severity: string };
 
 /** Tabla del catálogo de la sección Teoría: repaso libre, sin límites ni bloqueos.
  *  Cada tarjeta muestra el nombre del defecto (editable por el administrador) con su código. */
@@ -98,18 +98,13 @@ export function CodeTable({
                   className={`flex min-h-[3.25rem] flex-col justify-center gap-0.5 rounded-lg border px-2.5 py-1.5 text-left transition-all ${ring}`}
                 >
                   {named ? (
-                    <>
-                      <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                        {d.code}
-                        {seen && <CheckCircle2 className="h-3 w-3 text-bb-green" aria-hidden="true" />}
-                      </span>
-                      <span
-                        className="line-clamp-2 text-xs font-semibold leading-tight text-bb-green-dark"
-                        title={label}
-                      >
-                        {label}
-                      </span>
-                    </>
+                    <span
+                      className="flex items-center gap-1 line-clamp-2 text-xs font-semibold leading-tight text-bb-green-dark"
+                      title={label}
+                    >
+                      {label}
+                      {seen && <CheckCircle2 className="h-3 w-3 shrink-0 text-bb-green" aria-hidden="true" />}
+                    </span>
                   ) : (
                     <span className="flex items-center justify-center gap-1 py-1.5 text-sm font-semibold text-bb-green-dark">
                       {d.code}

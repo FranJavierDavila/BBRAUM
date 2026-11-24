@@ -72,9 +72,8 @@ export function ResultView({
                 ) : (
                   <XCircle className="h-4 w-4 shrink-0 text-red-500" aria-hidden="true" />
                 )}
-                <span className="font-mono font-bold text-slate-600">{d.defectCode}</span>
                 <span className="flex-1 truncate text-slate-600">
-                  {defectLabel({ code: d.defectCode, name: d.defectName, displayName: d.defectDisplayName })}
+                  {defectLabel({ code: d.defectCode, name: d.defectName })}
                 </span>
               </div>
             ))}

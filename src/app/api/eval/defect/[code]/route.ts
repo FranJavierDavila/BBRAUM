@@ -30,10 +30,8 @@ export async function GET(
     defect: {
       code: defect.code,
       name: defect.name,
-      displayName: defect.displayName,
       category: defect.category,
       description: defect.description,
-      detail: defect.detail,
       severity: defect.severity,
       modelPath: defect.modelPath,
       causes: defect.causes,
@@ -41,7 +39,6 @@ export async function GET(
       detection: defect.detection,
       action: defect.action,
       prevention: defect.prevention,
-      regulation: defect.regulation,
       media: defect.media,
     },
   });

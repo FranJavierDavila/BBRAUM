@@ -60,7 +60,7 @@ export async function findDefectByCode(rawCode: string) {
 export async function listDefectsForLabels() {
   return db.defect.findMany({
     orderBy: { order: "asc" },
-    select: { code: true, name: true, displayName: true, category: true },
+    select: { code: true, name: true, category: true },
   });
 }
 
@@ -78,15 +78,15 @@ export function qrReadmeText(baseUrl: string, defects: DefectNamer[]): string {
   lines.push("Cómo usarla:");
   lines.push("1. Imprime 'etiquetas.html' (A4 vertical, sin márgenes del navegador).");
   lines.push("2. Recorta cada etiqueta y pégala en el compartimento correspondiente");
-  lines.push("   del expositor físico (cada QR corresponde al código indicado).");
+  lines.push("   del expositor físico (cada QR corresponde a un defecto).");
   lines.push("3. Al escanear un QR con la cámara del móvil, se abre directamente la");
   lines.push("   ficha del defecto en la aplicación web.");
   lines.push("");
   lines.push(`URL base de los QR: ${baseUrl}`);
   lines.push(`URL de ejemplo: ${defectUrl(baseUrl, defects[0]?.code ?? "D001")}`);
   lines.push("");
-  lines.push("Códigos incluidos:");
-  for (const d of defects) lines.push(`  - ${d.code}: ${defectLabel(d)}`);
+  lines.push("Defectos incluidos (por orden de etiqueta):");
+  for (const d of defects) lines.push(`  - ${defectLabel(d)}`);
   lines.push("");
   return lines.join("\n");
 }
@@ -97,9 +97,8 @@ export function labelsHtml(baseUrl: string, defects: (DefectNamer & { category: 
     .map((d) => {
       const img = dataUrls.get(d.code) ?? "";
       return `        <div class="etiqueta">
-          <div class="qr"><img src="${img}" alt="QR ${d.code}" /></div>
+          <div class="qr"><img src="${img}" alt="QR" /></div>
           <div class="info">
-            <div class="codigo">${d.code}</div>
             <div class="nombre">${escapeHtml(defectLabel(d))}</div>
             <div class="categoria">${escapeHtml(d.category)}</div>
             <div class="url">${escapeHtml(defectUrl(baseUrl, d.code))}</div>

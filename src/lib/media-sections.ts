@@ -11,7 +11,6 @@ export const MEDIA_SECTIONS = [
   { key: "action", label: "Apartado 5 · Actuación correcta", short: "Actuación" },
   { key: "detection", label: "Apartado 6 · Guía para su detección durante la inspección", short: "Detección" },
   { key: "prevention", label: "Apartado 7 · Prevención y buenas prácticas", short: "Prevención" },
-  { key: "regulation", label: "Nota al pie · Referencias normativas", short: "Normativa" },
 ] as const;
 
 export type MediaSectionKey = (typeof MEDIA_SECTIONS)[number]["key"];
