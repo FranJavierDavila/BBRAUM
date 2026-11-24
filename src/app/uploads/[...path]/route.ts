@@ -28,6 +28,7 @@ const MIME: Record<string, string> = {
   ogg: "audio/ogg",
   mov: "video/quicktime",
   m4v: "video/mp4",
+  glb: "model/gltf-binary",
   mp3: "audio/mpeg",
   wav: "audio/wav",
   m4a: "audio/mp4",

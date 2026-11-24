@@ -1,34 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { takeUpload } from "@/lib/chunked-uploads";
-import { readdir, writeFile } from "fs/promises";
+import { UPLOADS_DIR } from "@/lib/uploads-dir";
+import { readdir, mkdir, writeFile } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 
-const MAX_GLB = 32 * 1024 * 1024; // 32 MB
+const MAX_GLB = 128 * 1024 * 1024; // 128 MB
 
-/** GET /api/admin/models — lista de modelos GLB disponibles en /public/models. */
+/**
+ * GET /api/admin/models — lista de modelos GLB disponibles: los incluidos con
+ * la aplicación (public/models) y los subidos por el administrador
+ * (UPLOADS_DIR/modelos, carpeta de datos que sobrevive a reconstrucciones).
+ */
 export async function GET() {
   const session = await getSession();
   if (!session || session.role !== "ADMIN") {
     return NextResponse.json({ error: "Solo el administrador puede consultar los modelos" }, { status: 403 });
   }
 
-  const dir = path.join(process.cwd(), "public", "models");
-  let files: string[] = [];
-  try {
-    files = (await readdir(dir)).filter((f) => f.toLowerCase().endsWith(".glb"));
-  } catch {
-    files = [];
-  }
-  files.sort((a, b) => a.localeCompare(b));
+  const dirBase = path.join(process.cwd(), "public", "models");
+  const dirDatos = path.join(UPLOADS_DIR, "modelos");
+  const leer = async (dir: string, flag: boolean): Promise<Array<{ path: string; name: string; subido?: boolean }>> => {
+    try {
+      const files = (await readdir(dir)).filter((f) => f.toLowerCase().endsWith(".glb")).sort((a, b) => a.localeCompare(b));
+      return files.map((f) => ({
+        path: `${flag ? "/uploads/modelos/" : "/models/"}${f}`,
+        name: f,
+        ...(flag ? { subido: true } : {}),
+      }));
+    } catch {
+      return [];
+    }
+  };
+  const [base, subidos] = await Promise.all([leer(dirBase, false), leer(dirDatos, true)]);
 
-  return NextResponse.json({
-    models: files.map((f) => ({ path: `/models/${f}`, name: f })),
-  });
+  return NextResponse.json({ models: [...base, ...subidos] });
 }
 
-/** POST /api/admin/models — sube un nuevo modelo .glb al servidor. */
+/** POST /api/admin/models — sube un nuevo modelo .glb al servidor. Se guarda en
+ *  UPLOADS_DIR/modelos (fuera del build): sobrevive a reconstrucciones y
+ *  actualizaciones (v1.4.8) y se sirve por /uploads/modelos/… */
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session || session.role !== "ADMIN") {
@@ -68,7 +80,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Solo se aceptan archivos .glb" }, { status: 400 });
   }
   if (fileSize > MAX_GLB) {
-    return NextResponse.json({ error: "El modelo excede el límite de 32 MB" }, { status: 400 });
+    return NextResponse.json({ error: "El modelo excede el límite de 128 MB" }, { status: 400 });
   }
 
   // Validar cabecera glTF (magic "glTF")
@@ -78,7 +90,9 @@ export async function POST(req: NextRequest) {
 
   const base = fileName.slice(0, -4).replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 60) || "modelo";
   const name = `${base}-${crypto.randomBytes(3).toString("hex")}.glb`;
-  await writeFile(path.join(process.cwd(), "public", "models", name), buf);
+  const dir = path.join(UPLOADS_DIR, "modelos");
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, name), buf);
 
-  return NextResponse.json({ ok: true, model: { path: `/models/${name}`, name } });
+  return NextResponse.json({ ok: true, model: { path: `/uploads/modelos/${name}`, name, subido: true } });
 }

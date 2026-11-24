@@ -229,8 +229,19 @@ etiquetas QR. Dos formas de gestionarlo:
   de la aplicación, para que ninguna reconstrucción o actualización lo borre.
   Al actualizar desde v1.4.6 o anterior, copie el contenido de
   `aplicacion/public/uploads` a `aplicacion/datos-ficheros/uploads`.
-- Todo lo subido queda en `public/uploads/defects/<código>/` y se preserva en
-  cada despliegue.
+- Desde v1.4.8 se pueden subir modelos GLB propios desde el panel (pestaña
+  «Configuración», visor 3D), con un límite de 128 MB; se guardan en la carpeta
+  de datos (`datos-ficheros/uploads/modelos`) y sobreviven a reconstrucciones y
+  actualizaciones. Nueva pestaña **«Copia»** en el panel de administración:
+  descarga una copia íntegra (base de datos + todos los ficheros) y restaura
+  copias — así se puede editar todo en una instalación (por ejemplo en local),
+  descargar la copia y volcarla al acceso online con «Restaurar copia», o
+  respaldar todo antes de una actualización. La base de datos del paquete pasa
+  a guardarse en `aplicacion/datos-ficheros/bbraun.db`, también fuera del
+  directorio de aplicación: el lanzador migra automáticamente la antigua
+  `datos/bbraun.db` la primera vez que arranca (v1.4.7 o anterior).
+- Todo lo subido queda en la carpeta de datos (`datos-ficheros/uploads/`) y se
+  preserva en cada despliegue, reconstrucción y actualización.
 
 ### 11.1 Carga en lote de material (modelos GLB, textos, recursos y preguntas)
 

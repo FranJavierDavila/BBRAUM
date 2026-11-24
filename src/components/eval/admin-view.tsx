@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Loader2, Save, Download, Search, KeyRound, Settings2, Users, BookOpenCheck,
   Boxes, Image as ImageIcon, Link2, Trash2, Upload, Film, Volume2, QrCode, Printer, FileSpreadsheet,
+  DatabaseBackup, UploadCloud,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch, type SessionUser } from "@/lib/eval-types";
@@ -127,7 +128,7 @@ async function uploadChunked(file: File): Promise<string> {
 export function AdminView({ onUsernameChanged }: { onUsernameChanged: (u: string) => void }) {
   return (
     <Tabs defaultValue="config" className="space-y-4">
-      <TabsList className="grid w-full max-w-3xl grid-cols-5">
+      <TabsList className="grid w-full max-w-4xl grid-cols-6">
         <TabsTrigger value="config" className="gap-1.5">
           <Settings2 className="h-4 w-4" aria-hidden="true" /> Configuración
         </TabsTrigger>
@@ -143,13 +144,142 @@ export function AdminView({ onUsernameChanged }: { onUsernameChanged: (u: string
         <TabsTrigger value="creds" className="gap-1.5">
           <KeyRound className="h-4 w-4" aria-hidden="true" /> Credenciales
         </TabsTrigger>
+        <TabsTrigger value="backup" className="gap-1.5">
+          <DatabaseBackup className="h-4 w-4" aria-hidden="true" /> Copia
+        </TabsTrigger>
       </TabsList>
       <TabsContent value="config"><ConfigTab /></TabsContent>
       <TabsContent value="records"><RecordsTab /></TabsContent>
       <TabsContent value="contents"><ContentsTab /></TabsContent>
       <TabsContent value="qr"><QrTab /></TabsContent>
       <TabsContent value="creds"><CredentialsTab onUsernameChanged={onUsernameChanged} /></TabsContent>
+      <TabsContent value="backup"><BackupTab /></TabsContent>
     </Tabs>
+  );
+}
+
+/* ---------------- Copia de seguridad ---------------- */
+
+/**
+ * Exporta o restaura la copia íntegra de la aplicación (base de datos +
+ * todos los ficheros subidos). Flujo de trabajo: se puede editar todo en una
+ * instalación (por ejemplo en local), descargar la copia y restaurarla en el
+ * acceso online — o al revés — sin perder nada en actualizaciones.
+ */
+function BackupTab() {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [resultado, setResultado] = useState("");
+
+  async function exportar() {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/backup", { credentials: "include" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `bbraun-copia-${new Date().toISOString().slice(0, 10)}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({
+        title: "Copia generada",
+        description: `ZIP de ${Math.round((blob.size / 1e6) * 10) / 10} MB descargado con la base de datos y todos los ficheros.`,
+      });
+    } catch (err) {
+      toast({ title: "No se pudo generar la copia", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function restaurar() {
+    if (!file) return;
+    if (!window.confirm("La restauración SUSTITUYE todos los contenidos, preguntas, registros y ficheros actuales por los de la copia seleccionada. ¿Continuar?")) return;
+    setBusy(true);
+    setResultado("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/backup", { method: "POST", body: fd, credentials: "include" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      setResultado(
+        `Copia restaurada: ${data.tablas} tablas de la base de datos y ${data.ficheros} ficheros${data.modelosBase ? `, ${data.modelosBase} modelos base añadidos` : ""}.${data.aviso ? ` AVISO: ${data.aviso}` : ""} Recarga la página (F5) para ver los datos restaurados.`,
+      );
+      toast({ title: "Copia restaurada", description: "Recarga la página para ver los datos restaurados." });
+      setFile(null);
+    } catch (err) {
+      setResultado("");
+      toast({ title: "No se pudo restaurar la copia", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-slate-50 p-4 text-sm leading-relaxed text-slate-600">
+        <p className="font-semibold text-slate-800">Edición íntegra en local y volcado al acceso online</p>
+        <p className="mt-1.5">
+          «Descargar copia» genera un ZIP con <strong>todo</strong>: base de datos (defectos, textos, preguntas,
+          registros, usuarios) y todos los ficheros subidos (material de apoyo y modelos 3D propios). Edita lo que
+          necesites en cualquier instalación — por ejemplo en local —, descarga la copia y restaúrala en el acceso
+          online con «Restaurar copia». También úsala antes de una actualización como respaldo.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Descargar copia completa (ZIP)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-slate-500">
+            Incluye la base de datos al completo y la carpeta de datos con todo el material subido. Guárdala en un
+            lugar seguro o tráela a otra instalación.
+          </p>
+          <Button onClick={exportar} disabled={busy} className="gap-1.5">
+            <DatabaseBackup className="h-4 w-4" aria-hidden="true" />
+            {busy ? "Generando…" : "Descargar copia"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Restaurar copia (ZIP)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-slate-500">
+            Sustituye todos los contenidos y ficheros actuales por los de la copia. La copia debe ser un ZIP generado
+            por «Descargar copia» de esta misma aplicación.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              type="file"
+              accept=".zip"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="max-w-md"
+              aria-label="Archivo ZIP de la copia"
+            />
+            <Button onClick={restaurar} disabled={busy || !file} variant="outline" className="gap-1.5">
+              <UploadCloud className="h-4 w-4" aria-hidden="true" />
+              {busy ? "Restaurando…" : "Restaurar copia"}
+            </Button>
+          </div>
+          {resultado && (
+            <p className="rounded-lg border border-bb-green-line bg-bb-green-tint/50 p-3 text-sm leading-relaxed text-bb-green-dark">
+              {resultado}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -1164,7 +1294,7 @@ function ContentsTab() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-slate-400">
-                  Elige un modelo ya servido o sube un nuevo archivo .glb (máx. 32 MB). Al subirlo se asigna y guarda automáticamente.
+                  Elige un modelo ya servido o sube un nuevo archivo .glb (máx. 128 MB). Al subirlo se asigna y guarda automáticamente en la carpeta de datos: sobrevive a reconstrucciones y actualizaciones.
                 </p>
               </div>
 
