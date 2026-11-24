@@ -211,8 +211,6 @@ export function PruebaView({
           <Viewer3DCard
             src={q.modelPath}
             name={qLabel}
-            severity={q.defectSeverity}
-            code={q.defectCode}
           />
         </div>
 

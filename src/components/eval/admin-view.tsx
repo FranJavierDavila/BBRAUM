@@ -771,7 +771,7 @@ type ContentFieldKey =
   | "detection" | "action" | "prevention";
 
 const CONTENT_FIELDS: Array<{ key: ContentFieldKey; label: string; hint: string; rows: number }> = [
-  { key: "description", label: "Apartado 2 · Descripción breve del defecto", hint: "Qué es el defecto en una o dos frases (el apartado 1 «Defecto» se compone con el nombre y la familia)", rows: 3 },
+  { key: "description", label: "Apartado 2 · Descripción breve del defecto", hint: "Qué es el defecto en una o dos frases (el apartado 1 «Defecto» se compone solo con el nombre)", rows: 3 },
   { key: "risks", label: "Apartado 3 · Riesgos para el paciente", hint: "Consecuencias clínicas potenciales y criticidad asociada", rows: 4 },
   { key: "causes", label: "Apartado 4 · Causas habituales", hint: "Orígenes frecuentes: proceso, material, manipulación, logística…", rows: 4 },
   { key: "action", label: "Apartado 5 · Actuación correcta", hint: "Qué debe hacer el inspector: segregación, registro, avisos", rows: 4 },

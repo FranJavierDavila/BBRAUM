@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createReadStream, existsSync, statSync } from "fs";
 import path from "path";
 import { Readable } from "stream";
+import { UPLOADS_DIR, uploadsFallbackDirs } from "@/lib/uploads-dir";
 
 /**
  * GET /uploads/<ruta> — sirve el material subido (imágenes, vídeo, audio)
@@ -11,6 +12,9 @@ import { Readable } from "stream";
  * Motivo (v1.4.5): el servidor standalone de Next.js escanea public/ solo al
  * arrancar; los ficheros subidos con el servidor en marcha devolvían 404 y
  * no se visualizaban en las fichas. Esta ruta lee el disco en cada petición.
+ * Desde v1.4.7 busca primero en UPLOADS_DIR (carpeta de datos fuera del build,
+ * donde se guardan las subidas y sobreviven a las reconstrucciones) y después
+ * en public/uploads (material incluido con el build, p. ej. la demo).
  */
 
 const MIME: Record<string, string> = {
@@ -38,12 +42,20 @@ export async function GET(
   if (!parts?.length || parts.some((p) => p.includes("..") || p.includes("\0"))) {
     return new NextResponse("Ruta no válida", { status: 400 });
   }
-  const base = path.join(process.cwd(), "public", "uploads");
-  const abs = path.resolve(base, ...parts);
-  if (!abs.startsWith(base + path.sep)) {
-    return new NextResponse("Ruta no válida", { status: 400 });
+  // Primero la carpeta de datos (UPLOADS_DIR) y luego el respaldo en public/
+  let abs: string | null = null;
+  for (const base of [UPLOADS_DIR, ...uploadsFallbackDirs()]) {
+    const candidate = path.resolve(base, ...parts);
+    if (
+      candidate.startsWith(base + path.sep) &&
+      existsSync(candidate) &&
+      statSync(candidate).isFile()
+    ) {
+      abs = candidate;
+      break;
+    }
   }
-  if (!existsSync(abs) || !statSync(abs).isFile()) {
+  if (!abs) {
     return new NextResponse("No encontrado", { status: 404 });
   }
 
@@ -80,7 +92,7 @@ export async function GET(
           "Content-Length": String(end - start + 1),
           "Content-Range": `bytes ${start}-${end}/${size}`,
           "Accept-Ranges": "bytes",
-          "Cache-Control": "public, max-age=3600",
+          "Cache-Control": "public, max-age=31536000, immutable",
         },
       });
     }
@@ -92,7 +104,7 @@ export async function GET(
       "Content-Type": type,
       "Content-Length": String(size),
       "Accept-Ranges": "bytes",
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": "public, max-age=31536000, immutable",
     },
   });
 }

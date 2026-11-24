@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { MEDIA_SECTION_KEYS } from "@/lib/media-sections";
+import { UPLOADS_DIR } from "@/lib/uploads-dir";
 import { takeUpload } from "@/lib/chunked-uploads";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
@@ -141,7 +142,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const dir = path.join(process.cwd(), "public", "uploads", "defects", code);
+    // Carpeta de datos fuera del build (UPLOADS_DIR): el material subido
+    // sobrevive a reconstrucciones y actualizaciones (v1.4.7)
+    const dir = path.join(UPLOADS_DIR, "defects", code);
     await mkdir(dir, { recursive: true });
     const name = `${Date.now()}-${crypto.randomBytes(4).toString("hex")}.${ext}`;
     await writeFile(path.join(dir, name), buf);

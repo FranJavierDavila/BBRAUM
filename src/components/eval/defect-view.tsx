@@ -7,12 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Viewer3DCard, SEV_STYLE, SEV_TEXT } from "./viewer-3d-card";
+import { Viewer3DCard } from "./viewer-3d-card";
 import { ResourceViewer } from "./resource-viewer";
 import {
   ArrowLeft, CheckCircle2, XCircle, Loader2, GraduationCap, RefreshCw,
   Wrench, HeartPulse, Eye, ClipboardList, ShieldCheck, Images, Play, Sparkles,
-  CircleAlert, FileText, Volume2,
+  CircleAlert, FileText, Volume2, Maximize2,
 } from "lucide-react";
 import {
   apiFetch, type DefectData, type DefectMediaItem, type QuizQuestion, type AnswerFeedback,
@@ -61,25 +61,45 @@ function SectionHeading({ n, label, icon: Icon }: {
 }
 
 /** Previsualización directa de un recurso: se muestra el contenido una sola
- *  vez, sin etiquetas; solo el pie de foto opcional se añade debajo. */
-function MediaPreview({ item }: { item: DefectMediaItem }) {
+ *  vez, sin etiquetas y encajado para verlo en su totalidad (v1.4.7); imágenes
+ *  y vídeos se expanden al pulsar sobre ellos (se cierran desde el visor). */
+function MediaPreview({ item, onOpen }: { item: DefectMediaItem; onOpen: () => void }) {
   return (
     <figure className="space-y-1.5">
       {item.type === "IMAGE" && (
-        <img
-          src={item.url}
-          alt={item.caption || "Material del apartado"}
-          className="h-44 w-full rounded-lg border object-cover"
-          loading="lazy"
-        />
+        <button
+          type="button"
+          onClick={onOpen}
+          className="block w-full cursor-zoom-in overflow-hidden rounded-lg border bg-white"
+          aria-label="Ampliar imagen"
+          title="Pulsa para ampliar"
+        >
+          <img
+            src={item.url}
+            alt={item.caption || "Material del apartado"}
+            className="max-h-72 w-full object-contain"
+            loading="lazy"
+          />
+        </button>
       )}
       {item.type === "VIDEO" && (
-        <video
-          controls
-          preload="metadata"
-          src={item.url}
-          className="aspect-video w-full rounded-lg border bg-black"
-        />
+        <div className="relative">
+          <video
+            controls
+            preload="metadata"
+            src={item.url}
+            className="w-full rounded-lg border bg-black"
+          />
+          <button
+            type="button"
+            onClick={onOpen}
+            className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900/70 text-white transition-colors hover:bg-slate-900"
+            aria-label="Ampliar vídeo"
+            title="Pulsa para ampliar"
+          >
+            <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
       )}
       {item.type === "AUDIO" && (
         <div className="rounded-lg border border-bb-green-line bg-bb-green-tint/40 p-2.5">
@@ -106,13 +126,20 @@ function MediaPreview({ item }: { item: DefectMediaItem }) {
 }
 
 /** Recursos enlazados a un apartado: se previsualizan a continuación del texto,
- *  cada uno una sola vez y sin etiqueta (v1.4.6). */
-function SectionMediaInline({ items }: { items: DefectMediaItem[] }) {
+ *  cada uno una sola vez y sin etiqueta (v1.4.6); encajados y ampliables
+ *  pulsando sobre ellos (v1.4.7). */
+function SectionMediaInline({
+  items,
+  onOpenItem,
+}: {
+  items: DefectMediaItem[];
+  onOpenItem: (item: DefectMediaItem) => void;
+}) {
   if (items.length === 0) return null;
   return (
     <div className="mt-2.5 grid gap-3 sm:grid-cols-2">
       {items.map((m) => (
-        <MediaPreview key={m.id} item={m} />
+        <MediaPreview key={m.id} item={m} onOpen={() => onOpenItem(m)} />
       ))}
     </div>
   );
@@ -199,14 +226,22 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
 
   /** Abre el visor con el grupo de recursos de la galería.
    *  Las imágenes forman carrusel; el resto se abre individual. */
-  function openViewer(type: DefectMediaItem["type"], id?: string) {
+  /** Abre el visor con el grupo de recursos indicado (las imágenes forman
+   *  carrusel; el resto se abre individual). Sirve tanto para la galería del
+   *  pie como para los recursos previsualizados dentro de un apartado. */
+  function openPool(
+    pool: DefectMediaItem[],
+    section: string | null,
+    type: DefectMediaItem["type"],
+    id?: string,
+  ) {
     const group =
       type === "IMAGE"
-        ? galleryMedia.filter((m) => m.type === "IMAGE")
-        : galleryMedia.filter((m) => m.type === type && (!id || m.id === id));
+        ? pool.filter((m) => m.type === "IMAGE")
+        : pool.filter((m) => m.type === type && (!id || m.id === id));
     if (group.length === 0) return;
     const idx = Math.max(0, group.findIndex((m) => m.id === id));
-    setViewer({ items: group, index: idx, section: null });
+    setViewer({ items: group, index: idx, section });
   }
 
   return (
@@ -223,7 +258,7 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Modelo 3D (el GLB asignado a este defecto) */}
         <div className="self-start lg:sticky lg:top-4">
-          <Viewer3DCard src={defect.modelPath} name={defectTitle} severity={defect.severity} code={defect.code} />
+          <Viewer3DCard src={defect.modelPath} name={defectTitle} />
         </div>
 
         {/* Ficha con la estructura validada de 7 apartados */}
@@ -232,17 +267,12 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
             <CardTitle className="text-base">Ficha del defecto</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Apartado 1 · Defecto (identificación, solo con la nomenclatura del cliente) */}
+            {/* Apartado 1 · Defecto (identificación, solo con la nomenclatura del cliente:
+                sin familia ni severidad, añadidos no solicitados — v1.4.7) */}
             <section className="rounded-lg border bg-slate-50 p-3">
               <SectionHeading n={1} label="Defecto" icon={CircleAlert} />
               <p className="mt-2 text-sm font-semibold text-slate-800">{defectTitle}</p>
-              <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                Familia: {defect.category}
-                <Badge variant="outline" className={`text-[11px] ${SEV_STYLE[defect.severity] || SEV_STYLE.MENOR}`}>
-                  Severidad: {SEV_TEXT[defect.severity] || defect.severity}
-                </Badge>
-              </p>
-              <SectionMediaInline items={bySection("header")} />
+              <SectionMediaInline items={bySection("header")} onOpenItem={(m) => openPool(bySection("header"), "header", m.type, m.id)} />
             </section>
 
             {/* Apartado 2 · Descripción breve del defecto */}
@@ -251,7 +281,7 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
               <div className="mt-1.5 space-y-2 text-sm leading-relaxed text-slate-600">
                 <p>{defect.description}</p>
               </div>
-              <SectionMediaInline items={bySection("description")} />
+              <SectionMediaInline items={bySection("description")} onOpenItem={(m) => openPool(bySection("description"), "description", m.type, m.id)} />
             </section>
 
             {/* Apartados 3-7 · estructura fija, se muestren o no completados */}
@@ -267,7 +297,7 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
                   ) : (
                     <SectionPending />
                   )}
-                  <SectionMediaInline items={sectionMedia} />
+                  <SectionMediaInline items={sectionMedia} onOpenItem={(m) => openPool(sectionMedia, s.key, m.type, m.id)} />
                 </section>
               );
             })}
@@ -290,7 +320,7 @@ export function DefectView({ code, onBack, showQuiz = true }: { code: string; on
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2">
               {galleryMedia.map((m) => (
-                <MediaCard key={m.id} item={m} onOpen={() => openViewer(m.type, m.id)} />
+                <MediaCard key={m.id} item={m} onOpen={() => openPool(galleryMedia, null, m.type, m.id)} />
               ))}
             </div>
           </CardContent>
@@ -525,20 +555,32 @@ function MediaCard({
         <button
           type="button"
           onClick={() => onOpen(item)}
-          className="block w-full overflow-hidden rounded-lg border transition-opacity hover:opacity-90"
-          aria-label={`Ampliar imagen: ${item.title}`}
+          className="block w-full cursor-zoom-in overflow-hidden rounded-lg border bg-white"
+          aria-label="Ampliar imagen"
+          title="Pulsa para ampliar"
         >
-          <img src={item.url} alt={item.title} className="h-44 w-full object-cover" loading="lazy" />
+          <img src={item.url} alt={item.caption || "Material de apoyo"} className="max-h-56 w-full object-contain" loading="lazy" />
         </button>
       )}
       {item.type === "VIDEO" && (
-        <video
-          controls
-          preload="metadata"
-          src={item.url}
-          className="aspect-video w-full rounded-lg border bg-black"
-          aria-label={`Vídeo: ${item.title}`}
-        />
+        <div className="relative">
+          <video
+            controls
+            preload="metadata"
+            src={item.url}
+            className="w-full rounded-lg border bg-black"
+            aria-label="Vídeo de apoyo"
+          />
+          <button
+            type="button"
+            onClick={() => onOpen(item)}
+            className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900/70 text-white transition-colors hover:bg-slate-900"
+            aria-label="Ampliar vídeo"
+            title="Pulsa para ampliar"
+          >
+            <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
       )}
       {item.type === "AUDIO" && (
         <div className="space-y-2 rounded-lg border border-bb-green-line bg-bb-green-tint/40 p-3">

@@ -4,6 +4,66 @@ import { useEffect, useRef, useState } from "react";
 import type * as THREE_TYPES from "three";
 
 /**
+ * Caché en memoria de los GLB ya descargados (v1.4.7). Cada montaje del visor
+ * (abrir otra ficha, maximizar, volver atrás) reutilizaba el servidor para
+ * volver a bajar modelos de ~12 MB; con la caché el modelo se descarga una vez
+ * por sesión y el resto de aperturas son inmediatas. La caché guarda los bytes;
+ * la escena se vuelve a construir por montaje (los recursos GPU no se comparten
+ * entre renderers con seguridad).
+ */
+const glbBufferCache = new Map<string, Promise<ArrayBuffer>>();
+
+function fetchGlb(src: string): Promise<ArrayBuffer> {
+  let p = glbBufferCache.get(src);
+  if (!p) {
+    p = fetch(src).then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.arrayBuffer();
+    });
+    p.catch(() => glbBufferCache.delete(src)); // si falla, no se conserva
+    glbBufferCache.set(src, p);
+  }
+  return p;
+}
+
+/**
+ * Caché de escenas ya decodificadas (v1.4.7): reabrir una ficha o maximizar el
+ * visor reutiliza el modelo decodificado (se monta un clon por instancia), sin
+ * nueva descarga ni nueva decodificación DRACO, que es lo que más tarda. Se
+ * guardan las 6 más recientes; al expulsar una se libera su GPU. Cada clon
+ * comparte geometrías/materiales con el original, así que liberar los recursos
+ * al desmontar es seguro: three los vuelve a subir a la GPU al renderizar.
+ */
+const glbSceneCache = new Map<string, THREE_TYPES.Object3D>();
+const GLB_SCENE_MAX = 6;
+
+function cacheScene(src: string, scene: THREE_TYPES.Object3D) {
+  glbSceneCache.delete(src);
+  glbSceneCache.set(src, scene);
+  while (glbSceneCache.size > GLB_SCENE_MAX) {
+    const oldestKey = glbSceneCache.keys().next().value as string;
+    const oldest = glbSceneCache.get(oldestKey);
+    glbSceneCache.delete(oldestKey);
+    if (oldest) disposeModelTree(oldest);
+  }
+}
+
+/** Libera geometrías, materiales y texturas de un árbol de objetos. */
+function disposeModelTree(obj: THREE_TYPES.Object3D) {
+  obj.traverse((child) => {
+    const mesh = child as THREE_TYPES.Mesh;
+    if (mesh.geometry) mesh.geometry.dispose();
+    const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+    for (const m of mats) {
+      for (const v of Object.values(m)) {
+        if (v && (v as THREE_TYPES.Texture).isTexture) (v as THREE_TYPES.Texture).dispose();
+      }
+      m.dispose();
+    }
+  });
+}
+
+/**
  * Visor 3D de los modelos GLB basado en three.js, con la misma calidad de
  * visionado que el visor de referencia (visor_botella.html):
  *
@@ -91,6 +151,7 @@ export function ModelViewer({
         controls.enableDamping = true;
 
         let model: THREE_TYPES.Object3D | null = null;
+        let dracoDispose: (() => void) | null = null;
 
         // Encuadre automático idéntico al visor de referencia
         function frame(obj: THREE_TYPES.Object3D) {
@@ -112,42 +173,57 @@ export function ModelViewer({
           controls.update();
         }
 
-        function disposeModel(obj: THREE_TYPES.Object3D) {
-          obj.traverse((child) => {
-            const mesh = child as THREE_TYPES.Mesh;
-            if (mesh.geometry) mesh.geometry.dispose();
-            const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
-            for (const m of mats) {
-              for (const v of Object.values(m)) {
-                if (v && (v as THREE_TYPES.Texture).isTexture) (v as THREE_TYPES.Texture).dispose();
-              }
-              m.dispose();
-            }
-          });
+        function mountScene(srcScene: THREE_TYPES.Object3D) {
+          model = srcScene.clone(true);
+          scene.add(model);
+          frame(model);
+          setLoaded(true);
         }
 
+        const cachedScene = glbSceneCache.get(src);
+        if (cachedScene) {
+          // Modelo ya decodificado en esta sesión: montaje inmediato
+          mountScene(cachedScene);
+        } else {
         // Decodificador DRACO local (algunos GLB del catálogo, p. ej. suero.glb,
         // usan KHR_draco_mesh_compression). Sin dependencia de CDN: funciona offline.
         const draco = new DRACOLoader();
         draco.setDecoderPath("/draco/");
         const loader = new GLTFLoader();
         loader.setDRACOLoader(draco);
+        dracoDispose = () => {
+          draco.dispose();
+          loader.setDRACOLoader(null);
+        };
 
-        loader.load(
-          src,
-          (gltf) => {
-            if (cancelled) {
-              disposeModel(gltf.scene);
-              return;
-            }
-            model = gltf.scene;
-            scene.add(model);
-            frame(model);
-            setLoaded(true);
+        // Descarga con caché de bytes + escena decodificada en caché: reabrir la
+        // ficha o maximizar el visor no vuelve a descargar ni a decodificar. Se
+        // parsea una COPIA del buffer: el decodificador DRACO transfiere el
+        // ArrayBuffer a su worker y lo dejaría inutilizable para el siguiente uso.
+        fetchGlb(src).then(
+          (buffer) =>
+            loader.parse(
+              buffer.slice(0),
+              "",
+              (gltf) => {
+                if (cancelled) {
+                  disposeModelTree(gltf.scene);
+                  return;
+                }
+                cacheScene(src, gltf.scene);
+                mountScene(gltf.scene);
+              },
+              (err) => {
+                console.error("GLB parse:", src, err);
+                if (!cancelled) setFailed(true);
+              },
+            ),
+          (err) => {
+            console.error("GLB fetch:", src, err);
+            if (!cancelled) setFailed(true);
           },
-          undefined,
-          () => !cancelled && setFailed(true),
         );
+        }
 
         // Redimensionado responsivo del contenedor (tarjeta / maximizado)
         const onResize = () => {
@@ -171,12 +247,11 @@ export function ModelViewer({
           renderer.setAnimationLoop(null);
           ro.disconnect();
           controls.dispose();
-          if (model) disposeModel(model);
+          if (model) disposeModelTree(model);
           envTexture.dispose();
           pmrem.dispose();
           bgTex.dispose();
-          draco.dispose();
-          loader.setDRACOLoader(null);
+          dracoDispose?.();
           renderer.dispose();
           renderer.domElement.remove();
         };

@@ -3,36 +3,23 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ModelViewer } from "./model-viewer";
 import { Maximize2, Minimize2, Info } from "lucide-react";
 
-export const SEV_STYLE: Record<string, string> = {
-  CRITICO: "border-red-200 bg-red-50 text-red-700",
-  MAYOR: "border-amber-200 bg-amber-50 text-amber-700",
-  MENOR: "border-slate-200 bg-slate-100 text-slate-600",
-};
-export const SEV_TEXT: Record<string, string> = {
-  CRITICO: "Crítico",
-  MAYOR: "Mayor",
-  MENOR: "Menor",
-};
-
 /**
  * Tarjeta de visor 3D maximizable, reutilizada en la ficha de Teoría y en cada
- * pregunta de la Prueba de Evaluación. Siempre muestra el GLB asignado al defecto.
+ * pregunta de la Prueba de Evaluación. Siempre muestra el GLB asignado al
+ * defecto. La cabecera solo muestra el nombre del defecto (v1.4.7): sin
+ * severidad ni códigos internos, que no forman parte de la nomenclatura del
+ * cliente.
  */
 export function Viewer3DCard({
   src,
   name,
-  severity,
-  code,
 }: {
   src: string;
   name: string;
-  severity: string;
-  code?: string;
 }) {
   const [viewerMax, setViewerMax] = useState(false);
 
@@ -56,14 +43,6 @@ export function Viewer3DCard({
       <CardHeader className="pb-2">
         <CardTitle className="flex flex-wrap items-center gap-2 text-base">
           <span>{name}</span>
-          <Badge variant="outline" className={SEV_STYLE[severity] || SEV_STYLE.MENOR}>
-            {SEV_TEXT[severity] || severity}
-          </Badge>
-          {code && (
-            <Badge variant="outline" className="font-mono text-sm font-bold text-slate-700">
-              {code}
-            </Badge>
-          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -97,17 +76,7 @@ export function Viewer3DCard({
             aria-label="Visor 3D maximizado"
           >
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-semibold text-white sm:text-base">{name}</span>
-                <Badge variant="outline" className={SEV_STYLE[severity] || SEV_STYLE.MENOR}>
-                  {SEV_TEXT[severity] || severity}
-                </Badge>
-                {code && (
-                  <Badge variant="outline" className="border-white/30 font-mono text-white/80">
-                    {code}
-                  </Badge>
-                )}
-              </div>
+              <span className="text-sm font-semibold text-white sm:text-base">{name}</span>
               <Button
                 size="sm"
                 variant="outline"

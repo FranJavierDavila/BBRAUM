@@ -218,6 +218,17 @@ etiquetas QR. Dos formas de gestionarlo:
   previsualiza directamente en el apartado elegido, una sola vez y sin
   etiquetas; la galería «Material de apoyo» del pie queda para el material sin
   apartado asignado.
+- Desde v1.4.7 las fichas muestran solo el nombre del defecto: se retiran la
+  «Familia» y la «Severidad» del apartado 1 y las insignias del visor 3D. Las
+  imágenes y vídeos se muestran encajados (se ven enteros, sin recortes) y se
+  expanden al pulsar sobre ellos, con cierre desde el visor. Los modelos 3D
+  se descargan y decodifican una sola vez por sesión: reabrir una ficha o
+  maximizar el visor es instantáneo, y el navegador guarda los GLB en caché
+  entre sesiones. **Importante:** el material subido se guarda ahora en la
+  carpeta de datos `aplicacion/datos-ficheros/uploads`, fuera del directorio
+  de la aplicación, para que ninguna reconstrucción o actualización lo borre.
+  Al actualizar desde v1.4.6 o anterior, copie el contenido de
+  `aplicacion/public/uploads` a `aplicacion/datos-ficheros/uploads`.
 - Todo lo subido queda en `public/uploads/defects/<código>/` y se preserva en
   cada despliegue.
 
