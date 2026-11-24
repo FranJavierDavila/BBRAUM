@@ -200,6 +200,10 @@ etiquetas QR. Dos formas de gestionarlo:
   (mp4/webm/ogg/mov/m4v), audio 16 MB (mp3/wav/ogg/m4a/aac), modelos .glb 32 MB.
   Si vas a permitir vídeos grandes tras Nginx, sube también
   `client_max_body_size` en `nginx-bbraun.conf` (p. ej. `80M`).
+- Desde v1.4.4 las subidas grandes se hacen **por trozos**: la aplicación divide
+  el fichero en partes de ≤ 768 KB y el servidor lo reensambla, por lo que la
+  subida funciona incluso detrás de proxies que limitan el tamaño de cada
+  petición (error 413). Los límites por fichero no cambian.
 - Todo lo subido queda en `public/uploads/defects/<código>/` y se preserva en
   cada despliegue.
 

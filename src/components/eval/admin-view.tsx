@@ -98,6 +98,35 @@ async function postForm<T>(url: string, form: FormData): Promise<T> {
   return data;
 }
 
+const CHUNK_SIZE = 768 * 1024; // trozos pequeños: compatibles con proxies inversos que limitan la petición (~1 MB)
+
+/** Sube un fichero por trozos a /api/admin/chunks y devuelve el token para el POST final.
+ *  Evita el corte (413) de proxies que rechazan peticiones grandes: los GLB de ~12 MB,
+ *  vídeos y demás material se suben igual desde cualquier acceso. */
+async function uploadChunked(file: File): Promise<string> {
+  const uploadId = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
+    b.toString(16).padStart(2, "0")
+  ).join("");
+  const total = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+  for (let i = 0; i < total; i++) {
+    const fd = new FormData();
+    fd.append("uploadId", uploadId);
+    fd.append("index", String(i));
+    fd.append("filename", file.name);
+    fd.append("file", file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE), "chunk");
+    const res = await fetch("/api/admin/chunks", { method: "POST", body: fd, cache: "no-store" });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error || "Error de comunicación con el servidor");
+    }
+  }
+  const fd = new FormData();
+  fd.append("uploadId", uploadId);
+  fd.append("done", "1");
+  const data = await postForm<{ token: string }>("/api/admin/chunks", fd);
+  return data.token;
+}
+
 export function AdminView({ onUsernameChanged }: { onUsernameChanged: (u: string) => void }) {
   return (
     <Tabs defaultValue="config" className="space-y-4">
@@ -865,9 +894,18 @@ function ContentsTab() {
     if (!selectedCode) return;
     setUploadingModel(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const data = await postForm<{ model: ModelInfo }>("/api/admin/models", fd);
+      let data: { model: ModelInfo };
+      if (file.size > 400 * 1024) {
+        // Ficheros grandes por trozos: evita el corte de los proxies (413)
+        const token = await uploadChunked(file);
+        const fd = new FormData();
+        fd.append("uploadToken", token);
+        data = await postForm<{ model: ModelInfo }>("/api/admin/models", fd);
+      } else {
+        const fd = new FormData();
+        fd.append("file", file);
+        data = await postForm<{ model: ModelInfo }>("/api/admin/models", fd);
+      }
       const list = await apiFetch<{ models: ModelInfo[] }>("/api/admin/models");
       setModels(list.models);
       setModelPath(data.model.path);
@@ -928,7 +966,15 @@ function ContentsTab() {
       if (newCaption.trim()) fd.append("caption", newCaption.trim());
       fd.append("section", newSection === SECTION_GALLERY ? "" : newSection);
       if (newType === "EMBED") fd.append("url", newUrl.trim());
-      else fd.append("file", mediaFileRef.current!.files![0]);
+      else {
+        const file = mediaFileRef.current!.files![0];
+        if (file.size > 400 * 1024) {
+          const token = await uploadChunked(file);
+          fd.append("uploadToken", token);
+        } else {
+          fd.append("file", file);
+        }
+      }
       await postForm("/api/admin/media", fd);
       const data = await apiFetch<{ media: AdminMedia[] }>(
         `/api/admin/media?code=${encodeURIComponent(selectedCode)}`

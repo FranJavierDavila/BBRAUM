@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { MEDIA_SECTION_KEYS } from "@/lib/media-sections";
+import { takeUpload } from "@/lib/chunked-uploads";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
@@ -91,12 +92,30 @@ export async function POST(req: NextRequest) {
     }
     url = raw;
   } else {
-    const file = form.get("file");
-    if (!(file instanceof File) || file.size === 0) {
-      return NextResponse.json({ error: "Falta el archivo a subir" }, { status: 400 });
+    // El fichero llega directo (subida local) o por trozos vía /api/admin/chunks (uploadToken)
+    const token = String(form.get("uploadToken") || "").trim();
+    let fileName = "";
+    let fileSize = 0;
+    let buf: Buffer;
+    if (token) {
+      const up = await takeUpload(token);
+      if ("error" in up) {
+        return NextResponse.json({ error: up.error }, { status: 400 });
+      }
+      fileName = up.filename;
+      fileSize = up.size;
+      buf = up.buf;
+    } else {
+      const file = form.get("file");
+      if (!(file instanceof File) || file.size === 0) {
+        return NextResponse.json({ error: "Falta el archivo a subir" }, { status: 400 });
+      }
+      fileName = file.name;
+      fileSize = file.size;
+      buf = Buffer.from(await file.arrayBuffer());
     }
 
-    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    const ext = (fileName.split(".").pop() || "").toLowerCase();
     const isImage = type === "IMAGE" && IMAGE_EXT.includes(ext);
     const isVideo = type === "VIDEO" && VIDEO_EXT.includes(ext);
     const isAudio = type === "AUDIO" && AUDIO_EXT.includes(ext);
@@ -111,7 +130,7 @@ export async function POST(req: NextRequest) {
       );
     }
     const max = isImage ? MAX_IMAGE : isAudio ? MAX_AUDIO : MAX_VIDEO;
-    if (file.size > max) {
+    if (fileSize > max) {
       return NextResponse.json(
         { error: `El archivo excede el límite de ${Math.round(max / (1024 * 1024))} MB` },
         { status: 400 }
@@ -121,7 +140,7 @@ export async function POST(req: NextRequest) {
     const dir = path.join(process.cwd(), "public", "uploads", "defects", code);
     await mkdir(dir, { recursive: true });
     const name = `${Date.now()}-${crypto.randomBytes(4).toString("hex")}.${ext}`;
-    await writeFile(path.join(dir, name), Buffer.from(await file.arrayBuffer()));
+    await writeFile(path.join(dir, name), buf);
     url = `/uploads/defects/${code}/${name}`;
   }
 
