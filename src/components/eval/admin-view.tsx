@@ -804,6 +804,10 @@ function ContentsTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingModel, setUploadingModel] = useState(false);
+  // El guardado solo se habilita cuando los textos del defecto seleccionado están
+  // cargados en el formulario: evita que un guardado prematuro envíe apartados
+  // vacíos y los borre en el servidor (v1.4.5).
+  const [contentReady, setContentReady] = useState(false);
 
   // Alta de material
   const [newType, setNewType] = useState<"IMAGE" | "VIDEO" | "EMBED" | "AUDIO">("IMAGE");
@@ -845,6 +849,7 @@ function ContentsTab() {
   // Al cambiar el defecto seleccionado: rellenar plantilla + cargar material
   useEffect(() => {
     if (!selectedCode) return;
+    setContentReady(false);
     const d = defectsRef.current.find((x) => x.code === selectedCode);
     if (d) {
       setForm({
@@ -860,6 +865,7 @@ function ContentsTab() {
       setModelPath(d.modelPath);
       setName(d.name ?? "");
       setDisplayName(d.displayName ?? "");
+      setContentReady(true);
     }
     apiFetch<{ media: AdminMedia[] }>(`/api/admin/media?code=${encodeURIComponent(selectedCode)}`)
       .then((data) => setMedia(data.media))
@@ -1193,7 +1199,12 @@ function ContentsTab() {
                 </p>
               </div>
 
-              <Button onClick={saveContent} disabled={saving} className="gap-2">
+              <Button
+                onClick={saveContent}
+                disabled={saving || !contentReady}
+                title={contentReady ? undefined : "Cargando el contenido del defecto…"}
+                className="gap-2"
+              >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
                 Guardar contenido
               </Button>

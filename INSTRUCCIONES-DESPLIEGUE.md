@@ -204,6 +204,11 @@ etiquetas QR. Dos formas de gestionarlo:
   el fichero en partes de ≤ 768 KB y el servidor lo reensambla, por lo que la
   subida funciona incluso detrás de proxies que limitan el tamaño de cada
   petición (error 413). Los límites por fichero no cambian.
+- Desde v1.4.5 los ficheros subidos (GLB, imágenes, vídeo y audio) se sirven
+  desde disco en cada petición, con soporte de rangos para vídeo; antes solo se
+  servían los presentes al arrancar y lo subido en caliente daba 404. Además,
+  el botón «Guardar contenido» queda bloqueado hasta que el formulario carga
+  los textos del defecto, para que un guardado prematuro no borre apartados.
 - Todo lo subido queda en `public/uploads/defects/<código>/` y se preserva en
   cada despliegue.
 
