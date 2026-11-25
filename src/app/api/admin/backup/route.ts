@@ -63,22 +63,19 @@ export async function GET() {
       zip.addFile(`ficheros/${rel}`, await readFile(abs));
     }
 
-    // Modelos incluidos con la aplicación (por si la restauración se hace sobre
-    // una instalación donde falten)
-    const baseModels = path.join(process.cwd(), "public", "models");
-    for (const abs of await walk(baseModels)) {
-      const rel = path.relative(baseModels, abs).split(path.sep).join("/");
-      zip.addFile(`modelos-base/${rel}`, await readFile(abs));
-    }
+    // NOTA: los modelos incluidos con la aplicación (public/models) NO se
+    // exportan: forman parte del paquete y están presentes en cualquier
+    // instalación; incluirlos multiplicaba el tamaño de la copia (~30 MB) y
+    // las respuestas grandes se cortan al atravesar el servidor intermedio.
+    // El POST sigue aceptando «modelos-base/» de copias antiguas.
 
     zip.addFile(
       "LEEME-copia.txt",
       Buffer.from(
         "Copia de seguridad íntegra de Evaluación de Inspección Visual (BBRAUN).\n" +
           "- bbraun.db: base de datos completa (defectos, textos, preguntas, registros, usuarios).\n" +
-          "- ficheros/: material subido (imágenes, vídeos, audio y modelos GLB propios).\n" +
-          "- modelos-base/: modelos 3D incluidos con la aplicación.\n\n" +
-          "Restauración: Panel de administración → Copia de seguridad → «Restaurar copia».\n",
+          "- ficheros/: material subido (imágenes, vídeos, audio y modelos GLB propios).\n\n" +
+          "Restauración: Panel de administración → Copia → «Restaurar copia».\n",
         "utf8",
       ),
     );
