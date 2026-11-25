@@ -236,7 +236,13 @@ etiquetas QR. Dos formas de gestionarlo:
   descarga una copia íntegra (base de datos + todos los ficheros) y restaura
   copias — así se puede editar todo en una instalación (por ejemplo en local),
   descargar la copia y volcarla al acceso online con «Restaurar copia», o
-  respaldar todo antes de una actualización. La base de datos del paquete pasa
+  respaldar todo antes de una actualización. Desde v1.4.10 la restauración
+  está blindada: valida el ZIP y la base de datos **antes** de tocar nada
+  (integridad y tablas esenciales), extrae los ficheros a una carpeta temporal
+  que solo se instala si la extracción es completa, y aplica la base de datos
+  dentro de una transacción — una copia corrupta o ajena se rechaza con un
+  mensaje claro y la aplicación sigue funcionando con sus datos actuales.
+  La base de datos del paquete pasa
   a guardarse en `aplicacion/datos-ficheros/bbraun.db`, también fuera del
   directorio de aplicación: el lanzador migra automáticamente la antigua
   `datos/bbraun.db` la primera vez que arranca (v1.4.7 o anterior).
