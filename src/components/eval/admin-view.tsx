@@ -57,6 +57,26 @@ function fmt(d: string | null): string {
 
 type ModelInfo = { path: string; name: string };
 
+type AdminQuestion = {
+  id: string;
+  variant: number;
+  text: string;
+  optionA: string;
+  optionB: string;
+  optionC: string;
+  correct: string;
+  explanation: string;
+};
+
+type AdminQuestionDraft = {
+  text: string;
+  optionA: string;
+  optionB: string;
+  optionC: string;
+  correct: string;
+  explanation: string;
+};
+
 type AdminDefectSummary = {
   code: string;
   name: string;
@@ -940,6 +960,13 @@ function ContentsTab() {
   const mediaFileRef = useRef<HTMLInputElement>(null);
   const modelFileRef = useRef<HTMLInputElement>(null);
 
+  // Banco de preguntas del test (5 variantes por defecto): fuente del repaso
+  // de Teoría y de la Prueba de Evaluación
+  const [questions, setQuestions] = useState<AdminQuestion[]>([]);
+  const [qDrafts, setQDrafts] = useState<Record<number, AdminQuestionDraft>>({});
+  const [qReady, setQReady] = useState(false);
+  const [savingVariant, setSavingVariant] = useState<number | null>(null);
+
   const selected = useMemo(
     () => defects.find((d) => d.code === selectedCode) ?? null,
     [defects, selectedCode]
@@ -988,6 +1015,20 @@ function ContentsTab() {
     apiFetch<{ media: AdminMedia[] }>(`/api/admin/media?code=${encodeURIComponent(selectedCode)}`)
       .then((data) => setMedia(data.media))
       .catch(() => setMedia([]));
+    apiFetch<{ questions: AdminQuestion[] }>(`/api/admin/questions?code=${encodeURIComponent(selectedCode)}`)
+      .then((data) => {
+        setQuestions(data.questions);
+        const drafts: Record<number, AdminQuestionDraft> = {};
+        for (let v = 1; v <= 5; v++) {
+          const q = data.questions.find((x) => x.variant === v);
+          drafts[v] = q
+            ? { text: q.text, optionA: q.optionA, optionB: q.optionB, optionC: q.optionC, correct: q.correct, explanation: q.explanation }
+            : { text: "", optionA: "", optionB: "", optionC: "", correct: "A", explanation: "" };
+        }
+        setQDrafts(drafts);
+        setQReady(true);
+      })
+      .catch(() => setQReady(false));
   }, [selectedCode]);
 
   async function saveContent() {
@@ -1011,6 +1052,74 @@ function ContentsTab() {
       });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveQuestion(variant: number) {
+    if (!selectedCode) return;
+    const draft = qDrafts[variant];
+    if (!draft) return;
+    if (!draft.text.trim() || !draft.optionA.trim() || !draft.optionB.trim() || !draft.optionC.trim()) {
+      toast({
+        title: "Faltan datos",
+        description: "El enunciado y las tres opciones (A, B y C) son obligatorios.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSavingVariant(variant);
+    try {
+      await apiFetch("/api/admin/questions", {
+        method: "PUT",
+        body: JSON.stringify({ code: selectedCode, variant, ...draft }),
+      });
+      const data = await apiFetch<{ questions: AdminQuestion[] }>(
+        `/api/admin/questions?code=${encodeURIComponent(selectedCode)}`,
+      );
+      setQuestions(data.questions);
+      toast({
+        title: "Pregunta guardada",
+        description: `Variante ${variant} de ${selectedCode} en el banco del test actualizada.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Error al guardar la pregunta",
+        description: err instanceof Error ? err.message : "Error inesperado",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingVariant(null);
+    }
+  }
+
+  async function removeQuestion(variant: number) {
+    if (!selectedCode) return;
+    setSavingVariant(variant);
+    try {
+      await apiFetch("/api/admin/questions", {
+        method: "DELETE",
+        body: JSON.stringify({ code: selectedCode, variant }),
+      });
+      const data = await apiFetch<{ questions: AdminQuestion[] }>(
+        `/api/admin/questions?code=${encodeURIComponent(selectedCode)}`,
+      );
+      setQuestions(data.questions);
+      setQDrafts((prev) => ({
+        ...prev,
+        [variant]: { text: "", optionA: "", optionB: "", optionC: "", correct: "A", explanation: "" },
+      }));
+      toast({
+        title: "Pregunta quitada del banco",
+        description: `La variante ${variant} de ${selectedCode} ya no se usará en Teoría ni en la Prueba de Evaluación.`,
+      });
+    } catch (err) {
+      toast({
+        title: "No se pudo quitar la pregunta",
+        description: err instanceof Error ? err.message : "Error inesperado",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingVariant(null);
     }
   }
 
@@ -1307,6 +1416,152 @@ function ContentsTab() {
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
                 Guardar contenido
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* Banco de preguntas del test */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">
+                Preguntas del test — {defectLabel(selected)}
+              </CardTitle>
+              <CardDescription>
+                Banco de hasta 5 variantes de este defecto: es la fuente de todas las preguntas de la
+                aplicación. En la página de Teoría, cada repaso saca una variante al azar de aquí; en la
+                Prueba de Evaluación (test final) el sistema toma una variante al azar de cada defecto
+                incluido, y el número de preguntas de esa prueba se fija en la pestaña Configuración.
+                No existe un «test final» aparte: si cambias este banco, cambian también las preguntas
+                que pueden aparecer en la prueba.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {!qReady ? (
+                <p className="flex items-center gap-2 text-sm text-slate-400">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Cargando preguntas…
+                </p>
+              ) : (
+                [1, 2, 3, 4, 5].map((v) => {
+                  const draft = qDrafts[v];
+                  if (!draft) return null;
+                  const exists = questions.some((q) => q.variant === v);
+                  return (
+                    <details key={v} className="rounded-lg border">
+                      <summary className="flex cursor-pointer flex-wrap items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700">
+                        Variante {v}
+                        {exists ? (
+                          <Badge variant="outline" className="text-[10px]">En el banco</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-slate-400">Vacía</Badge>
+                        )}
+                      </summary>
+                      <div className="space-y-3 border-t p-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`q-text-${v}`}>Enunciado</Label>
+                          <Textarea
+                            id={`q-text-${v}`}
+                            rows={2}
+                            className="resize-y"
+                            value={draft.text}
+                            onChange={(e) =>
+                              setQDrafts((prev) => ({ ...prev, [v]: { ...prev[v], text: e.target.value } }))
+                            }
+                            placeholder="Pregunta tal como la verá el evaluador en el repaso y en la prueba"
+                          />
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`q-optA-${v}`}>Opción A</Label>
+                            <Input
+                              id={`q-optA-${v}`}
+                              value={draft.optionA}
+                              onChange={(e) =>
+                                setQDrafts((prev) => ({ ...prev, [v]: { ...prev[v], optionA: e.target.value } }))
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`q-optB-${v}`}>Opción B</Label>
+                            <Input
+                              id={`q-optB-${v}`}
+                              value={draft.optionB}
+                              onChange={(e) =>
+                                setQDrafts((prev) => ({ ...prev, [v]: { ...prev[v], optionB: e.target.value } }))
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`q-optC-${v}`}>Opción C</Label>
+                            <Input
+                              id={`q-optC-${v}`}
+                              value={draft.optionC}
+                              onChange={(e) =>
+                                setQDrafts((prev) => ({ ...prev, [v]: { ...prev[v], optionC: e.target.value } }))
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`q-ok-${v}`}>Opción correcta</Label>
+                            <Select
+                              value={draft.correct}
+                              onValueChange={(val) =>
+                                setQDrafts((prev) => ({ ...prev, [v]: { ...prev[v], correct: val } }))
+                              }
+                            >
+                              <SelectTrigger id={`q-ok-${v}`} aria-label="Opción correcta">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="A">A</SelectItem>
+                                <SelectItem value="B">B</SelectItem>
+                                <SelectItem value="C">C</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`q-exp-${v}`}>Explicación (se muestra al corregir)</Label>
+                            <Input
+                              id={`q-exp-${v}`}
+                              value={draft.explanation}
+                              onChange={(e) =>
+                                setQDrafts((prev) => ({ ...prev, [v]: { ...prev[v], explanation: e.target.value } }))
+                              }
+                              placeholder="Por qué esa opción es la correcta"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() => saveQuestion(v)}
+                            disabled={savingVariant === v}
+                          >
+                            {savingVariant === v ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Save className="h-3.5 w-3.5" aria-hidden="true" />
+                            )}
+                            Guardar variante {v}
+                          </Button>
+                          {exists && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1.5"
+                              onClick={() => removeQuestion(v)}
+                              disabled={savingVariant === v}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Quitar del banco
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </details>
+                  );
+                })
+              )}
             </CardContent>
           </Card>
 
