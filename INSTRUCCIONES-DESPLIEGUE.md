@@ -251,6 +251,11 @@ etiquetas QR. Dos formas de gestionarlo:
 
 ### 11.1 Carga en lote de material (modelos GLB, textos, recursos y preguntas)
 
+> Para editar directamente la base de datos `bbraun.db` en local (con DB
+> Browser for SQLite), sigue la guía **`EDITAR-BASE-DE-DATOS.md`** incluida
+> en este paquete: tablas, reglas, ejemplos SQL y el ciclo seguro para volcar
+> los cambios al acceso online.
+
 Para llevar el material real de los 40 defectos (p. ej. modelos GLB de ~12 MB,
 los textos de los 7 apartados, fotos/vídeos/audios y el banco de preguntas) de
 una sola vez y en local, usa el **cargador de material**
