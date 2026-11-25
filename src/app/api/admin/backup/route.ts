@@ -4,7 +4,7 @@ import { takeUpload } from "@/lib/chunked-uploads";
 import { UPLOADS_DIR } from "@/lib/uploads-dir";
 import { db } from "@/lib/db";
 import AdmZip from "adm-zip";
-import { readdir, readFile, writeFile, rm, mkdir } from "fs/promises";
+import { readdir, readFile, writeFile, rm, mkdir, rename } from "fs/promises";
 import { existsSync, statSync } from "fs";
 import path from "path";
 import os from "os";
@@ -134,93 +134,159 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // 1) Ficheros: sustituye por completo la carpeta de datos con «ficheros/»
-    const ficheros = entries.filter((e) => !e.isDirectory && e.entryName.startsWith("ficheros/"));
-    await rm(UPLOADS_DIR, { recursive: true, force: true });
-    await mkdir(UPLOADS_DIR, { recursive: true });
-    let escritos = 0;
-    for (const e of ficheros) {
-      const rel = e.entryName.slice("ficheros/".length);
-      if (!rel || rel.includes("..") || rel.includes("\0")) continue;
-      const abs = path.resolve(UPLOADS_DIR, rel);
-      if (!abs.startsWith(path.resolve(UPLOADS_DIR) + path.sep)) continue; // anti path-traversal
-      await mkdir(path.dirname(abs), { recursive: true });
-      await writeFile(abs, e.getData());
-      escritos++;
-    }
-
-    // 2) Modelos base incluidos en la copia (si el destino no los tiene)
-    let modelos = 0;
-    const baseModels = path.join(process.cwd(), "public", "models");
-    for (const e of entries.filter((x) => !x.isDirectory && x.entryName.startsWith("modelos-base/"))) {
-      const rel = e.entryName.slice("modelos-base/".length);
-      if (!rel || rel.includes("..")) continue;
-      const abs = path.join(baseModels, rel);
-      if (existsSync(abs) && statSync(abs).isFile()) continue; // no sobrescribir los del build
-      await mkdir(path.dirname(abs), { recursive: true });
-      await writeFile(abs, e.getData());
-      modelos++;
-    }
-
-    // 3) Base de datos: vuelca las tablas de la copia dentro de la BD en uso
-    //    (ATTACH + copia tabla a tabla; el esquema de la instalación en uso manda)
+    // 0) VALIDACIÓN ÍNTEGRA ANTES DE TOCAR NADA: si algo falla aquí, la
+    //    aplicación en marcha queda exactamente igual (ni ficheros ni BD).
     const tmp = path.join(os.tmpdir(), `bbraun-restore-${Date.now()}.db`);
     await writeFile(tmp, dbEntry.getData());
     const safeTmp = tmp.replace(/'/g, "''");
-    await db.$queryRawUnsafe(`ATTACH DATABASE '${safeTmp}' AS copia`);
-    const tablas = (await db.$queryRawUnsafe(
-      "SELECT name FROM copia.sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
-    )) as Array<{ name: string }>;
-
-    // Orden topológico por claves foráneas: los padres antes que los hijos para
-    // INSERTAR (y al revés para VACIAR), respetando las restricciones FK.
-    const nombres = tablas.map((t) => t.name);
-    const padres: Record<string, string[]> = {};
-    for (const n of nombres) {
-      const fks = (await db.$queryRawUnsafe(`PRAGMA foreign_key_list("${n.replace(/"/g, '""')}")`)) as Array<{ table: string }>;
-      padres[n] = fks.map((f) => f.table).filter((p) => nombres.includes(p));
+    try {
+      await db.$queryRawUnsafe(`ATTACH DATABASE '${safeTmp}' AS copia`);
+    } catch {
+      // Bytes que no son un fichero SQLite: se rechaza sin tocar nada
+      await rm(tmp, { force: true });
+      return NextResponse.json(
+        { error: "La base de datos de la copia está dañada o no es un fichero válido; restauración cancelada. La aplicación sigue funcionando con sus datos actuales." },
+        { status: 400 },
+      );
     }
-    const orden: string[] = [];
-    const pendiente = new Set(nombres);
-    while (pendiente.size > 0) {
-      const listos = [...pendiente].filter((t) => padres[t].every((p) => !pendiente.has(p)));
-      if (listos.length === 0) break; // ciclo: se continúa en el orden dado
-      for (const t of listos) { orden.push(t); pendiente.delete(t); }
-    }
-    for (const t of pendiente) orden.push(t);
-
-    let copiadas = 0;
-    const fallos: string[] = [];
-    for (const nombre of [...orden].reverse()) {
-      try {
-        await db.$queryRawUnsafe(`DELETE FROM main."${nombre.replace(/"/g, '""')}"`);
-      } catch (e) {
-        console.error("restore vaciado:", nombre, e);
+    try {
+      const integridad = (await db.$queryRawUnsafe("PRAGMA copia.integrity_check")) as Array<{ integrity_check: string }>;
+      if (!integridad.length || integridad[0].integrity_check !== "ok") {
+        return NextResponse.json(
+          { error: "La base de datos de la copia está dañada; restauración cancelada. La aplicación sigue funcionando con sus datos actuales." },
+          { status: 400 },
+        );
       }
-    }
-    for (const nombre of orden) {
-      const q = `"${nombre.replace(/"/g, '""')}"`;
-      try {
-        await db.$queryRawUnsafe(`INSERT INTO main.${q} SELECT * FROM copia.${q}`);
-        copiadas++;
-      } catch (e) {
-        fallos.push(nombre);
-        console.error("restore tabla:", nombre, e);
+      const tablasCopia = (await db.$queryRawUnsafe(
+        "SELECT name FROM copia.sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+      )) as Array<{ name: string }>;
+      const nombresCopia = tablasCopia.map((t) => t.name);
+      const faltan = ["Defect", "User", "Question"].filter((t) => !nombresCopia.includes(t));
+      if (faltan.length) {
+        return NextResponse.json(
+          { error: `El ZIP no es una copia válida de esta aplicación (faltan tablas: ${faltan.join(", ")}). Restauración cancelada.` },
+          { status: 400 },
+        );
       }
-    }
-    await db.$queryRawUnsafe("DETACH DATABASE copia");
-    await rm(tmp, { force: true });
+      const tablasMain = (await db.$queryRawUnsafe(
+        "SELECT name FROM main.sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+      )) as Array<{ name: string }>;
+      const nombresMain = tablasMain.map((t) => t.name);
+      const comunes = nombresCopia.filter((t) => nombresMain.includes(t));
+      const soloCopia = nombresCopia.filter((t) => !nombresMain.includes(t));
 
-    return NextResponse.json({
-      ok: true,
-      tablas: copiadas,
-      fallos,
-      ficheros: escritos,
-      modelosBase: modelos,
-      aviso: fallos.length
-        ? `Se restauraron ${copiadas} tablas; ${fallos.length} no coinciden con el esquema actual (${fallos.join(", ")}).`
-        : undefined,
-    });
+      // Orden topológico por claves foráneas: los padres antes que los hijos
+      // para INSERTAR (y al revés para VACIAR), respetando las restricciones FK.
+      const padres: Record<string, string[]> = {};
+      for (const n of comunes) {
+        const fks = (await db.$queryRawUnsafe(`PRAGMA foreign_key_list("${n.replace(/"/g, '""')}")`)) as Array<{ table: string }>;
+        padres[n] = fks.map((f) => f.table).filter((p) => comunes.includes(p));
+      }
+      const orden: string[] = [];
+      const pendiente = new Set(comunes);
+      while (pendiente.size > 0) {
+        const listos = [...pendiente].filter((t) => padres[t].every((p) => !pendiente.has(p)));
+        if (listos.length === 0) break; // ciclo: se continúa en el orden dado
+        for (const t of listos) { orden.push(t); pendiente.delete(t); }
+      }
+      for (const t of pendiente) orden.push(t);
+
+      // 1) Ficheros: se extraen a una carpeta temporal y solo si la extracción
+      //    es completa se intercambia por la actual (la antigua se conserva
+      //    hasta que el intercambio termina; si algo falla, nada cambia).
+      const ficheros = entries.filter((e) => !e.isDirectory && e.entryName.startsWith("ficheros/"));
+      const staging = `${UPLOADS_DIR}.nueva-${Date.now()}`;
+      const antigua = `${UPLOADS_DIR}.antigua-${Date.now()}`;
+      let escritos = 0;
+      try {
+        await mkdir(staging, { recursive: true });
+        for (const e of ficheros) {
+          const rel = e.entryName.slice("ficheros/".length);
+          if (!rel || rel.includes("..") || rel.includes("\0")) continue;
+          const abs = path.resolve(staging, rel);
+          if (!abs.startsWith(path.resolve(staging) + path.sep)) continue; // anti path-traversal
+          await mkdir(path.dirname(abs), { recursive: true });
+          await writeFile(abs, e.getData());
+          escritos++;
+        }
+        await rename(UPLOADS_DIR, antigua);
+        await rename(staging, UPLOADS_DIR);
+        await rm(antigua, { recursive: true, force: true });
+      } catch (eFich) {
+        await rm(staging, { recursive: true, force: true });
+        if (!existsSync(UPLOADS_DIR) && existsSync(antigua)) await rename(antigua, UPLOADS_DIR);
+        throw eFich;
+      }
+
+      // 2) Base de datos dentro de UNA transacción: o se aplica entera o no se
+      //    aplica nada (rollback automático si cualquier tabla falla).
+      const q = (n: string) => `"${n.replace(/"/g, '""')}"`;
+      let bdAplicada = false;
+      let copiadas = 0;
+      const fallos: string[] = [];
+      try {
+        const sentencias = [
+          ...[...orden].reverse().map((nombre) => db.$queryRawUnsafe(`DELETE FROM main.${q(nombre)}`)),
+          ...orden.map((nombre) => db.$queryRawUnsafe(`INSERT INTO main.${q(nombre)} SELECT * FROM copia.${q(nombre)}`)),
+        ];
+        await db.$transaction(sentencias);
+        bdAplicada = true;
+        copiadas = orden.length;
+      } catch (eTx) {
+        console.error("restore transacción (se reintenta tabla a tabla):", eTx);
+      }
+      if (!bdAplicada) {
+        for (const nombre of [...orden].reverse()) {
+          try {
+            await db.$queryRawUnsafe(`DELETE FROM main.${q(nombre)}`);
+          } catch (e) {
+            console.error("restore vaciado:", nombre, e);
+          }
+        }
+        for (const nombre of orden) {
+          try {
+            await db.$queryRawUnsafe(`INSERT INTO main.${q(nombre)} SELECT * FROM copia.${q(nombre)}`);
+            copiadas++;
+          } catch (e) {
+            fallos.push(nombre);
+            console.error("restore tabla:", nombre, e);
+          }
+        }
+      }
+
+      // 3) Modelos base incluidos en copias antiguas (si el destino no los tiene)
+      let modelos = 0;
+      const baseModels = path.join(process.cwd(), "public", "models");
+      for (const e of entries.filter((x) => !x.isDirectory && x.entryName.startsWith("modelos-base/"))) {
+        const rel = e.entryName.slice("modelos-base/".length);
+        if (!rel || rel.includes("..")) continue;
+        const abs = path.join(baseModels, rel);
+        if (existsSync(abs) && statSync(abs).isFile()) continue; // no sobrescribir los del build
+        await mkdir(path.dirname(abs), { recursive: true });
+        await writeFile(abs, e.getData());
+        modelos++;
+      }
+
+      await db.$queryRawUnsafe("DETACH DATABASE copia");
+
+      const avisos: string[] = [];
+      if (fallos.length) avisos.push(`Se restauraron ${copiadas} tablas; ${fallos.length} no coinciden con el esquema actual (${fallos.join(", ")}).`);
+      if (soloCopia.length) avisos.push(`Tablas de la copia ignoradas por no existir en el esquema actual: ${soloCopia.join(", ")}.`);
+      return NextResponse.json({
+        ok: true,
+        transaccion: bdAplicada,
+        tablas: copiadas,
+        fallos,
+        ficheros: escritos,
+        modelosBase: modelos,
+        aviso: avisos.length ? avisos.join(" ") : undefined,
+      });
+    } finally {
+      // Desadjunta la copia y limpia el temporal pase lo que pase (un «copia»
+      // residual impediría la siguiente restauración por nombre duplicado)
+      await db.$queryRawUnsafe("DETACH DATABASE copia").catch(() => {});
+      await rm(tmp, { force: true });
+    }
   } catch (err) {
     console.error("backup restore:", err);
     return NextResponse.json({ error: "No se pudo restaurar la copia de seguridad" }, { status: 500 });
